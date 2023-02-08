@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"stdlib.h": "c",
+			"errno.h": "c",
+			"fcntl.h": "c",
+			"termios.h": "c"
+		}
+	}
+}
