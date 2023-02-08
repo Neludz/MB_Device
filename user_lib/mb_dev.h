@@ -41,7 +41,7 @@ typedef enum
   send,
   time_out,
   not_connect
-} regerror_t;
+} regstatus_t;
 
 typedef struct
 {
