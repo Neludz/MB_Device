@@ -1,29 +1,42 @@
-//config
- uart=				0
- baudrate=			19200
+#config
+ uart				0
+ baudrate			19200
  
- * parity option: even/odd/none:
+ # parity option: even/odd/none:
  parity				none
  vtime				0
  vmin				0
  
- port_option=			1
+ port_option			1
  
- max frame size (byte)=		250
- max address span=		20
+ max_frame_size_(byte)		250
+ max_address_span		20
  
-*				impliment now:
-* 	 			
-*        			
-*        			
+#				impliment now:
+# 	 			
+#        			
+#        			
 
 
- modbus address:
+   modbus_register:  
 
-* name		    address		register 	type		    function	user_option
-*
- Request_4	    3		    24		    reg_int16	    03		    0
- Request_1	    1		    0		    reg_int16_ab	03		    0
- Request_2	    2		    5		    reg_int16	    03		    0
- Request_3	    3		    25		    reg_int16	    03		    0
- Request_4	    3		    26		    reg_int16	    03		    0
+# name		    address		register 	type		   	function	user_option
+#
+ Request_4	    3		    24			reg_int16		03		    0
+ Request_1	    1		    0			reg_int16_ab	03		    0
+ Request_2	    2		    5			reg_int16	    03		    0
+ Request_3	    3		    25			reg_int16	    03		    0
+ Request_4	    3		    26			reg_int16	    03		    0
+
+
+ Request_3	    4		    25		    reg_int16	    03		    0
+ Request_4	    5		    26		    reg_int16	    03		    0
+    yuiyh 
+    h
+    *
+		#
+
+
+
+      hn
+

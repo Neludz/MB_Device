@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define MAX_REG 500
+
 typedef enum
 {
   reg_byte_0a,
@@ -48,17 +50,8 @@ typedef struct
   uint8_t addr;
   uint32_t start_reg;
   uint32_t count_reg;
-  uint8_t request[];
+  uint8_t read_request[8];
 } mb_request_span_t;
-
-typedef struct
-{
-  uint32_t uart_port;
-  uint32_t baudrate;
-  uint32_t vtime;
-  uint32_t vmin;
-  mb_request_span_t test[];
-} mb_config_data_t;
 
 typedef struct
 {
@@ -70,7 +63,18 @@ typedef struct
   uint32_t value;
 } mb_reg_t;
 
-void parse_config(char *buf);
+typedef struct
+{
+  uint32_t uart_port;
+  uint32_t baudrate;
+  uint32_t vtime;
+  uint32_t vmin;
+  uint32_t reg_count;
+  uint32_t request_count;
+  mb_reg_t  *p_reg;
+  mb_request_span_t *p_span;
+} mb_config_data_t;
+
 
 int mb_config(char *st_config);
 

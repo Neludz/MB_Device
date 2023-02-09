@@ -21,7 +21,10 @@ int main(void)
   // write(fp,"west",4);
 
   // close(fp);
-mb_config("./config.txt");
+
+
+  
+  mb_config("config.txt");
   while (1)
   {
      ; 
