@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <ctype.h>
-//#include "mb_dev.h"
+#include "user_lib/mb_dev.h"
 
 
 struct strstr
@@ -53,7 +53,7 @@ void split(STRSTR str)
 int main(void)
 {
 
-  printf("old_version_hi_15\n");
+  printf("hi_15\n");
 
 /*     STRSTR str = malloc(sizeof(struct strstr));
     str->str = malloc(256);
@@ -76,11 +76,11 @@ int main(void)
 
 
   
- //mb_config("config.txt");
-  while (1)
-  {
-     ; 
-  }
+ mb_config("config.txt");
+  //while (1)
+  //{
+   //  ; 
+  //}
 }
 //   int sfd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY);
 //   if (sfd == -1)

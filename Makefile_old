@@ -1,0 +1,23 @@
+#compiler and linker flags
+CC			:= gcc
+SRC_DIR		:= src
+BIN_DIR 	:= bin
+BIN_EXE		:= $(BIN_DIR)/test
+OUTPUT		:= $(BIN_EXE)
+OBJ_DIR		:= obj
+INC_DIRS	:= -I$(SRC_DIR/user_lib) -I$(SRC_DIR)
+LIB_DIRS	:=
+SRC_FILES	:= $(wildcard $(SRC_DIR)/*/*.c $(SRC_DIR)/*.c)
+H_FILES		:= $(wildcard $(SRC_DIR)/*/*.h $(SRC_DIR)/*.h)
+OBJ_FILES	:= $(patsubst $(SRC_FILES)%.c, $(OBJ_DIR)%.o, $(SRC_FILES)) 
+CPP_FLAF	:= -o3
+LD_FLAGS	:= -o3
+MAKEFLAGS	:=
+
+$(OBJ_DIR)/%.o:	$(SRC_FILES) $(H_FILES)
+	$(CC) $(CPP_FLAF) $(INC_DIRS) -c -o $@ $<
+
+$(OUTPUT): $(OBJ_FILES) Makefile
+	$(CC) $(LIB_DIRS) $(LD_FLAGS) $(OBJ_FILES) -o $(OUTPUT)
+
+all: $(OUTPUT)

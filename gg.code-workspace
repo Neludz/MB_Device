@@ -9,7 +9,10 @@
 			"stdlib.h": "c",
 			"errno.h": "c",
 			"fcntl.h": "c",
-			"termios.h": "c"
-		}
+			"termios.h": "c",
+			"unistd.h": "c"
+		},
+		"makefile.makePath": "make",
+		"makefile.makefilePath": "${workspaceFolder}/Makefile"
 	}
 }
