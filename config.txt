@@ -19,14 +19,14 @@ modbus_register:
 
 # name		    address		register 	type	      function	user_option
 #
- Request_4	    3		    24			reg_int16       03		    0
- Request_1	    1		    0		    reg_int16_ab    03		    0
- Request_2	    2		    5		    reg_int16	    03		    0
- Request_3	    3		    25			reg_int16	    03		    0
- Request_4	    3		    26			reg_int16	    03		    0
+ Request_4	    3		    24			int16_ab    03		    0
+ Request_1	    1		    0		    int16_ab    03		    0
+ Request_2	    2		    5		    int16_ab	03		    0
+ Request_3	    3		    25			int16_ab	03		    0
+ Request_4	    3		    26			int16_ab	03		    0
 
 
- Request_3	    4		    25		    reg_int16	    03	        0
- Request_4	    5		    26		    reg_int16	    03          0
+ Request_3	    4		    25		  	int16_ab	03	        0
+ Request_4	    5		    26		   	int16_ab	03          0
 
 

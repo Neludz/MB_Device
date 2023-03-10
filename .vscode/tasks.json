@@ -7,17 +7,18 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
+                //"${file}",
                 "-I",
                 //"${file}",
-                "${workspaceFolder}/user_lib/",
-                "${workspaceFolder}/*.c",
-                "${workspaceFolder}/user_lib/*.c",
+                "${workspaceFolder}/src/user_lib/",
+                "${workspaceFolder}/src/*.c",
+                "${workspaceFolder}/src/user_lib/*.c",
                 "-o",
-                "${workspaceFolder}/${fileBasenameNoExtension}"
+                "${workspaceFolder}/bin/test_vs"
                // "${fileDirname}/${fileBasenameNoExtension}"
             ],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}"//"${fileDirname}"
             },
             "problemMatcher": [
                 "$gcc"

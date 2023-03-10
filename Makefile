@@ -1,25 +1,71 @@
 #compiler and linker flags
 CC			:= gcc
-SRC_DIR		:= src
-SRC_DIRS	:= src src/user_lib
-BIN_DIR 	:= bin
-BIN_EXE		:= $(BIN_DIR)/test
-OUTPUT		:= $(BIN_EXE)
-OBJ_DIR		:= obj/
-INC_DIRS	:= -I$(SRC_DIR/user_lib) -I$(SRC_DIR)
+SRC_DIRS	:= src	src/user_lib
+INC_DIRS	:= 
 LIB_DIRS	:=
-SRC_FILES	:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
-H_FILES		:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.h))#$(wildcard $(SRC_DIR)/*/*.h $(SRC_DIR)/*.h)
-OBJ_FILES	:= $(addprefix $(OBJ_DIR), $(patsubst %.c, %.o, $(SRC_FILES)))#TARGETDIRS = $(foreach dir, $(DIRS), $(addprefix $(BUILDDIR)/, $(dir)))
-
-CPP_FLAF	:= -o3
-LD_FLAGS	:= -o3
+BIN_DIR 	:= bin
+BIN_EXE		:= test
+OBJ_DIR		:= obj
+CPP_FLAGS	:= -O0 -g
+LD_FLAGS	:= -O0
 MAKEFLAGS	:=
-# $(wildcard $(SRC_DIR)/*/*.c $(SRC_DIR)/*.c)
-$(OBJ_DIR)/%.o:	$(SRC_FILES)/%.c $(H_FILES)
-	$(CC) $(CPP_FLAF) $(INC_DIRS) -c -o $@ $<
 
-$(OUTPUT): $(OBJ_FILES) Makefile
-	$(CC) $(LIB_DIRS) $(LD_FLAGS) $(OBJ_FILES) -o $(OUTPUT)
+# Decide whether the commands will be shwon or not
+VERBOSE = TRUE
 
-all: $(info SRC_FILES is $(SRC_FILES)) $(info H_FILES is $(H_FILES))  $(info OBJ_FILES is $(OBJ_FILES)) $(info OBJ_DIR is $(OBJ_DIR)) $(OUTPUT)
+LIBS 		:= $(foreach dir, $(LIB_DIRS), $(addprefix -L, $(dir)))
+INCLUDES 	:= $(foreach dir, $(SRC_DIRS) $(INC_DIRS), $(addprefix -I, $(dir)))
+TARGETDIRS 	:= $(foreach dir, $(SRC_DIRS), $(addprefix $(OBJ_DIR)/, $(dir)))
+SRC_FILES	:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
+H_FILES		:= $(foreach dir,$(SRC_DIRS) $(INC_DIRS),$(wildcard $(dir)/*.h))
+OBJ_FILES	:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c, %.o, $(SRC_FILES)))
+OUTPUT		:= $(BIN_DIR)/$(BIN_EXE)
+
+VPATH = $(SRC_DIRS)
+
+# Hide or not the calls depending of VERBOSE
+ifeq ($(VERBOSE),TRUE)
+    HIDE =
+else
+    HIDE = @
+endif
+
+    RM = rm -rf 
+    RMDIR = rm -rf 
+    MKDIR = mkdir -p
+    ERRIGNORE = 2>/dev/null
+    SEP=/
+
+# Remove space after separator
+PSEP = $(strip $(SEP))
+
+# Define the function that will generate each rule
+define generateRules
+$(1)/%.o: %.c
+	@echo Building $$@
+	$$(HIDE) $$(CC) $$(CPP_FLAGS) $$(INCLUDES) -c -o $$(subst /,$$(PSEP),$$@) $$(subst /,$$(PSEP),$$<) -MMD
+endef
+#$(CPP_FLAGS)
+.PHONY: all clean directories new
+
+all:	$(info TARGETDIRS is $(TARGETDIRS))\
+		directories $(OUTPUT)
+
+# Generate rules
+$(foreach targetdir, $(TARGETDIRS), $(eval $(call generateRules, $(targetdir))))
+
+$(OUTPUT): $(OBJ_FILES)
+	$(HIDE)echo Linking $@
+	$(HIDE)$(CC) $(LIBS) $(LD_FLAGS) $(OBJ_FILES) -o $(OUTPUT)
+
+directories:
+	$(HIDE)$(MKDIR) $(subst /,$(PSEP),$(TARGETDIRS)) $(ERRIGNORE)
+	
+# Remove all objects, dependencies and executable files generated during the build
+clean:
+	$(HIDE)$(RMDIR) $(subst /,$(PSEP),$(TARGETDIRS)) $(ERRIGNORE)
+	$(HIDE)$(RM) $(OUTPUT) $(ERRIGNORE)
+	@echo Cleaning done !
+
+new: clean
+	$(MAKE)

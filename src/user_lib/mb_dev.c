@@ -10,28 +10,14 @@
 #include <ctype.h>
 #include "mb_dev.h"
 
-void rtrim(char *src)
-{
-    size_t i, len;
-    volatile int isblank = 1;
-
-    if (src == NULL)
-        return;
-
-    len = strlen(src);
-    if (len == 0)
-        return;
-    for (i = len - 1; i > 0; i--)
+//-------------- from X macros --------------
+const char *str_with_type[NUM_REG_TYPE] =
     {
-        isblank = isspace(src[i]);
-        if (isblank)
-            src[i] = 0;
-        else
-            break;
-    }
-    if (isspace(src[i]))
-        src[i] = 0;
-}
+#define X_IO(a, b) b,
+        IO_TABLE
+#undef X_IO
+};
+//-------------------------------------------
 
 mb_config_data_t *parse_config(FILE *file)
 {
@@ -41,8 +27,7 @@ mb_config_data_t *parse_config(FILE *file)
     char value[100];
     uint32_t start_reg = 0;
     uint32_t reg_count = 0;
-    uint32_t i;
-
+    uint32_t i, j;
     // check register count
     while (fgets(buf, sizeof(buf), file) != NULL)
     {
@@ -73,7 +58,6 @@ mb_config_data_t *parse_config(FILE *file)
         printf("so many registers \n");
         return NULL;
     }
-
     // create register & config data
     mb_config_data_t *config_ptr = malloc(sizeof(mb_config_data_t));
     mb_reg_t *register_ptr = malloc(reg_count * sizeof(mb_config_data_t));
@@ -154,53 +138,69 @@ mb_config_data_t *parse_config(FILE *file)
             }
             else
             {
-                for (i = 0; i < 5; i++)
+                for (i = 0; i < LAST_REG_DATA_IN_STR; i++)
                 {
-                    if (reg_count<config_ptr->reg_count)
+                    if (reg_count < config_ptr->reg_count)
                     {
-                    p_val = strtok(NULL, " \t\n");
-                    switch (i)
-                    {
-                    case 0:
-                        config_ptr->p_reg[i].addr=(atoi(p_val));
-                        break;
-                    
-                    default:
-                        break;
+                        switch (i)
+                        {
+                        case ADDRESS_IN_STR:
+                            config_ptr->p_reg[reg_count].addr = (atoi(token));
+                            break;
+                        case REG_IN_STR:
+                            config_ptr->p_reg[reg_count].reg = (atoi(token));
+                            break;
+                        case TYPE_IN_STR:
+                            for (j = 0; j < NUM_REG_TYPE; j++)
+                            {
+                                if (strcmp(token, str_with_type[j]) == 0)
+                                {
+                                    config_ptr->p_reg[reg_count].type = j;
+                                    break;
+                                }
+                            }
+                            break;
+                        case FUNC_IN_STR:
+                            config_ptr->p_reg[reg_count].func = (atoi(token));
+                            break;
+                        case OPTION_IN_STR:
+                            config_ptr->p_reg[reg_count].user_option = (atoi(token));
+                            break;
+                        default:
+                            break;
+                        }
+                        token = strtok(NULL, " \t\n");
                     }
-                    }
-                    else 
-                    break;
-
-                    reg_count++;
+                    else
+                        break;
                 }
-                
+                reg_count++;
                 continue;
             }
         }
     }
+    return config_ptr;
 }
 
-int mb_config(char *st_config)
+static void create_span(mb_config_data_t data)
 {
+    
+}
+
+mb_config_data_t *mb_config(char *st_config)
+{
+    mb_config_data_t *data;
     int line = 0;
     FILE *file;
-    // char buf[256];
-    // int i = 0;
-    printf(" strart open config file: %s\n", st_config);
+
+    printf("start open config file: %s\n", st_config);
     file = fopen(st_config, "r");
     if (file == NULL)
     {
         printf("can't open config file\n");
-        return 1;
+        return NULL;
     }
-    parse_config(file);
-    // while (fgets(buf, sizeof(buf), file) != NULL)
-    // {
-    //   ifparse_config(buf);
-    //   line++;
-    // }
-
+    data = parse_config(file);
     fclose(file);
-    //  return (0);
+    return data;
 }

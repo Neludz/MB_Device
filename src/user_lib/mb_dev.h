@@ -10,18 +10,51 @@
 #include <stdint.h>
 
 #define MAX_REG 500
+//--------------------------
+//define all data in modbus regiter string
+#define LAST_REG_DATA_IN_STR 5
 
 typedef enum
 {
-  REG_BYTE_0A,
-  REG_BYTE_A0,
-  REG_INT16_AB,
-  REG_INT16_BA,
-  REG_INT32_ABCD,
-  REG_INT32_CDAB,
-  REG_FLOAT_ABCD,
-  REG_FLOAT_CDAB,
+  ADDRESS_IN_STR = 1,
+  REG_IN_STR = 2,
+  TYPE_IN_STR = 3,
+  FUNC_IN_STR = 4,
+  OPTION_IN_STR = 5,
+} data_in_str_t;
+//--------------------------
+//define type register in modbus regiter string
+#define IO_TABLE\
+  X_IO(REG_BYTE_0A,       "byte_0a" )	\
+  X_IO(REG_BYTE_A0,       "byte_a0" )	\
+  X_IO(REG_INT16_AB,      "int16_ab" )	\
+  X_IO(REG_INT16_BA,      "int16_ba" )	\
+  X_IO(REG_INT32_ABCD,    "int32_abcd" )	\
+  X_IO(REG_INT32_CDAB,    "int32_cdba" )	\
+  X_IO(REG_FLOAT_ABCD,    "float32_abcd" ) \
+  X_IO(REG_FLOAT_CDAB,    "float32_cdab" ) \
+
+typedef enum
+{
+#define X_IO(a,b) a,
+	IO_TABLE
+#undef X_IO
+	NUM_REG_TYPE
 } regtype_t;
+
+
+// typedef enum
+// {
+//   REG_BYTE_0A,
+//   REG_BYTE_A0,
+//   REG_INT16_AB,
+//   REG_INT16_BA,
+//   REG_INT32_ABCD,
+//   REG_INT32_CDAB,
+//   REG_FLOAT_ABCD,
+//   REG_FLOAT_CDAB,
+// } regtype_t;
+//--------------------------
 
 typedef enum
 {
@@ -85,6 +118,6 @@ typedef struct
   mb_request_span_t *p_span;
 } mb_config_data_t;
 
-int mb_config(char *st_config);
+mb_config_data_t *mb_config(char *st_config);
 
 #endif /* mb_dev.h */
