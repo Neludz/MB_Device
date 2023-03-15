@@ -8,8 +8,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "mb_dev_config.h"
 
-#define MAX_REG 500
+#define MAX_REG 1000
 //--------------------------
 //define all data in modbus regiter string
 #define LAST_REG_DATA_IN_STR 5
@@ -23,39 +24,65 @@ typedef enum
   OPTION_IN_STR = 5,
 } data_in_str_t;
 //--------------------------
+
+extern const char *str_with_type[];
+extern const char **str_with_type1[];
 //define type register in modbus regiter string
 #define IO_TABLE\
-  X_IO(REG_BYTE_0A,       "byte_0a" )	\
-  X_IO(REG_BYTE_A0,       "byte_a0" )	\
-  X_IO(REG_INT16_AB,      "int16_ab" )	\
-  X_IO(REG_INT16_BA,      "int16_ba" )	\
-  X_IO(REG_INT32_ABCD,    "int32_abcd" )	\
-  X_IO(REG_INT32_CDAB,    "int32_cdba" )	\
-  X_IO(REG_FLOAT_ABCD,    "float32_abcd" ) \
-  X_IO(REG_FLOAT_CDAB,    "float32_cdab" ) \
+  X_IO(REG_BYTE_0A,       "byte_0a",        &test_print, REG1_FLOAT_CDAB)	\
+  X_IO(REG_BYTE_A0,       "byte_a0",        &test_print, REG_INT16_AB)	\
+  X_IO(REG_INT16_AB,      "int16_ab",       &test_print, REG_INT16_AB)	\
+  X_IO(REG_INT16_BA,      "int16_ba",       &test_print, REG_INT16_AB)	\
+  X_IO(REG_INT32_ABCD,    "int32_abcd",     &test_print, REG_INT16_AB)	\
+  X_IO(REG_INT32_CDAB,    "int32_cdba",     &test_print, REG_INT16_AB)	\
+  X_IO(REG_FLOAT_ABCD,    "float32_abcd" ,  &test_print, REG_INT16_AB) \
+  X_IO(REG_FLOAT_CDAB,    "float32_cdab" ,  &test_print, REG_INT16_AB) \
 
 typedef enum
 {
-#define X_IO(a,b) a,
+#define X_IO(a,b,c,d) a,
 	IO_TABLE
 #undef X_IO
 	NUM_REG_TYPE
 } regtype_t;
-
-
-// typedef enum
-// {
-//   REG_BYTE_0A,
-//   REG_BYTE_A0,
-//   REG_INT16_AB,
-//   REG_INT16_BA,
-//   REG_INT32_ABCD,
-//   REG_INT32_CDAB,
-//   REG_FLOAT_ABCD,
-//   REG_FLOAT_CDAB,
-// } regtype_t;
 //--------------------------
 
+//define type register in modbus regiter string
+#define IO_TABLE_1\
+  X_IO(REG1_BYTE_0A,       &str_with_type[REG1_BYTE_0A],    &test_print1, REG1_BYTE_A0)	\
+  X_IO(REG1_BYTE_A0,       &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB)	\
+  X_IO(REG1_INT16_AB,      &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB)	\
+  X_IO(REG1_INT16_BA,      &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB)	\
+  X_IO(REG1_INT32_ABCD,    &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB)	\
+  X_IO(REG1_INT32_CDAB,    &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB)	\
+  X_IO(REG1FLOAT_ABCD,     &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB) \
+  X_IO(REG1_FLOAT_CDAB,    &str_with_type[REG1_BYTE_0A],    &test_print, REG_INT16_AB) \
+
+typedef enum
+{
+#define X_IO(a,b,c,d) a,
+	IO_TABLE_1
+#undef X_IO
+	NUM_REG_TYPE1
+} regtype_1_t;
+
+
+#define MB_FUNC_NONE							00
+#define MB_FUNC_READ_COILS						01
+#define MB_FUNC_READ_DISCRETE_INPUTS			02
+#define MB_FUNC_WRITE_SINGLE_COIL				05
+#define MB_FUNC_WRITE_MULTIPLE_COILS			15
+#define MB_FUNC_READ_HOLDING_REGISTER			03	/* implemented now	*/
+#define MB_FUNC_READ_INPUT_REGISTER				04
+#define MB_FUNC_WRITE_REGISTER					06
+#define MB_FUNC_WRITE_MULTIPLE_REGISTERS		16
+#define MB_FUNC_READWRITE_MULTIPLE_REGISTERS	23
+#define MB_FUNC_ERROR							0x80
+
+#define MB_SPAN_CREATE_FUNC ((1 << MB_FUNC_READ_HOLDING_REGISTER) |\
+                             (1 << MB_FUNC_READ_INPUT_REGISTER))
+
+//--------------------------
 typedef enum
 {
   MB_NO_ERROR = 0,
@@ -88,9 +115,11 @@ typedef enum
 typedef struct
 {
   uint8_t addr;
+  uint8_t err;
+  uint8_t func;
   uint32_t start_reg;
   uint32_t count_reg;
-  uint8_t read_request[8];
+  //uint8_t read_request[8];
 } mb_request_span_t;
 
 typedef struct
@@ -112,6 +141,7 @@ typedef struct
   uint32_t vtime;
   uint32_t vmin;
   uint32_t max_request_span;
+  uint32_t max_space_span;
   uint32_t reg_count;
   uint32_t request_count;
   mb_reg_t *p_reg;
@@ -119,5 +149,6 @@ typedef struct
 } mb_config_data_t;
 
 mb_config_data_t *mb_config(char *st_config);
-
+void test_print();
+void test_print1();
 #endif /* mb_dev.h */
