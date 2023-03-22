@@ -11,9 +11,17 @@
             "fcntl.h": "c",
             "termios.h": "c",
             "unistd.h": "c",
-            "stdint.h": "c"
+            "stdint.h": "c",
+            "pthread.h": "c"
         },
-		"makefile.makePath": "make",
-		"makefile.makefilePath": "${workspaceFolder}/Makefile"
+        "makefile.makePath": "make",
+        "makefile.launchConfigurations": [
+            {
+                "cwd": "/home/psina/gg/MB_Device/bin",
+                "binaryPath": "/home/psina/gg/MB_Device/bin/test",
+                "binaryArgs": []
+            }
+        ],
+		//"makefile.makefilePath": "/home/psina/gg/MB_Device/Makefile",
 	}
 }

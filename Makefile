@@ -20,6 +20,7 @@ SRC_FILES	:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
 H_FILES		:= $(foreach dir,$(SRC_DIRS) $(INC_DIRS),$(wildcard $(dir)/*.h))
 OBJ_FILES	:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c, %.o, $(SRC_FILES)))
 OUTPUT		:= $(BIN_DIR)/$(BIN_EXE)
+#OUTPUT		:= $(BIN_DIR)/$(if $(findstring Windows_NT, $(OS)),$(BIN_EXE).exe,$(BIN_EXE))
 
 VPATH = $(SRC_DIRS)
 
@@ -29,12 +30,20 @@ ifeq ($(VERBOSE),TRUE)
 else
     HIDE = @
 endif
-
+# OS specific part
+ifeq ($(OS),Windows_NT)
+    RM = del /F /Q 
+    RMDIR = -RMDIR /S /Q
+    MKDIR = -mkdir
+    ERRIGNORE = 2>NUL || (exit 0)
+    SEP=\\
+else
     RM = rm -rf 
     RMDIR = rm -rf 
     MKDIR = mkdir -p
     ERRIGNORE = 2>/dev/null
     SEP=/
+endif
 
 # Remove space after separator
 PSEP = $(strip $(SEP))
@@ -64,8 +73,11 @@ directories:
 # Remove all objects, dependencies and executable files generated during the build
 clean:
 	$(HIDE)$(RMDIR) $(subst /,$(PSEP),$(TARGETDIRS)) $(ERRIGNORE)
-	$(HIDE)$(RM) $(OUTPUT) $(ERRIGNORE)
+	$(HIDE)$(RM) $(subst /,$(PSEP),$(OUTPUT)) $(ERRIGNORE)
 	@echo Cleaning done !
 
 new: clean
 	$(MAKE)
+
+run: new
+	./bin/test

@@ -10,7 +10,13 @@
 #include <ctype.h>
 #include <sys/ioctl.h>
 #include <time.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include "user_lib/mb_dev.h"
+
+#define MB_PORT 5000
 
 mb_config_data_t *config_data;
 
@@ -25,44 +31,139 @@ int getBlock(uint8_t *buf, int Timeout, int maxbytes, int id)
     tcdrain(id);
     ioctl(id, FIONREAD, &bytes);
 
-    // struct timespec pause;
-    // pause.tv_sec = 0;
-    // pause.tv_nsec = Toutms * 1000;
     for (;;)
     {
-        usleep(5000);
+        usleep(10000);
         ioctl(id, FIONREAD, &bytes);
         bytes_count += bytes;
-        if (bytes_count >= maxbytes){
+        if (bytes_count >= maxbytes)
+        {
             printf(" if (bytes_count >= maxbytes) = %d \n", bytes_count);
             return 0;
         }
-            
+
         if (bytes)
         {
             read_count = read(id, buf, bytes);
             if (read_count != bytes)
             {
-            printf("read_count != bytes");
-return 0;
-            }               
+                printf("read_count != bytes");
+                return 0;
+            }
         }
         time_span++;
-        if ((((Timeout / 5) < time_span) && (!bytes_count)) ||
+        if ((((Timeout / 10) < time_span) && (!bytes_count)) ||
             ((bytes_count) && (!bytes)))
             return bytes_count;
     }
-
-    // memset(buf, '\0', sizeof (buf));
-    // if (bytes >= maxbytes)bytes=maxbytes;
-    // int count = read(id, buf, maxbytes);
     printf("bytes read : %d\n", bytes);
-    // buf[count+1] = 0;
+
     return bytes_count;
+}
+
+/*
+ * This will handle connection for each client
+ * */
+void *connection_handler(void *socket_desc)
+{
+    //Get the socket descriptor
+    int sock = *(int*)socket_desc;
+    int read_size;
+    char *message , client_message[2000];
+     
+    //Send some messages to the client
+    message = "Greetings! I am your connection handler\n";
+    write(sock , message , strlen(message));
+     
+    message = "Now type something and i shall repeat what you type \n";
+    write(sock , message , strlen(message));
+     
+    //Receive a message from client
+    while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
+    {
+        //end of string marker
+		client_message[read_size] = '\0';
+		
+		//Send the message back to client
+        write(sock , client_message , strlen(client_message));
+        printf("read len: %d\n", read_size);
+		printf("read data: %s\n", client_message);
+		//clear the message buffer
+		memset(client_message, 0, 2000);
+    }
+     
+    if(read_size == 0)
+    {
+        printf("Client disconnected\n");
+    }
+    else if(read_size == -1)
+    {
+        perror("recv failed");
+    }
+    // Client closed socket so clean up
+    close(sock);
+    return 0;
+} 
+
+void *MBSlave_Thread_handler(void *ptr)
+{
+    int socket_desc, client_sock, cli_len;
+    struct sockaddr_in server, client;
+    pthread_t thread_id;
+    // Create socket
+    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_desc == -1)
+    {
+        perror("Could not create socket");
+        return 0;
+    }
+    // Prepare the sockaddr_in structure
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons(MB_PORT);
+    // Bind
+    if (bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
+    {
+        // print the error message
+        perror("bind failed. Error");
+        return 0;
+    }
+    // Listen
+    listen(socket_desc, 3);
+    // Accept and incoming connection
+    printf("Waiting for incoming connections...\n");
+    cli_len = sizeof(struct sockaddr_in);
+    while ((client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t *)&cli_len)))
+    {
+        printf("Connection accepted\n");
+
+        if (pthread_create(&thread_id, NULL, connection_handler, (void *)&client_sock) < 0)
+        {
+            perror("could not create thread");
+            return 0;
+        }
+
+        // Now join the thread , so that we dont terminate before the thread
+        // pthread_join( thread_id , NULL);
+        printf("Handler assigned\n");
+    }
+
+    if (client_sock < 0)
+    {
+        perror("accept failed");
+        return 0;
+    }
 }
 
 int main(void)
 {
+    printf("\r\n************ start_modbus_mb ************\r\n\r\n");
+    pthread_t MBSlave_Thread_id;
+
+    if (pthread_create(&MBSlave_Thread_id, NULL, MBSlave_Thread_handler, NULL) < 0)
+    {
+        perror("MBSlave_Thread not creatr");
+    }
 
     int sfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
 
@@ -83,26 +184,21 @@ int main(void)
     options.c_cc[VMIN] = 0;
     tcsetattr(sfd, TCSANOW, &options);
 
-    printf("start_modbus_mb\r\n");
     // test_pr[0]();
     // test_pr1[0]();
     //  config_data = mb_config("config.txt");
 
-    int gg;
-
     char buf[] = {0x01, 0x03, 0x00, 0x01, 0x00, 0x28, 0x14, 0x14};
     uint8_t buf_read[120];
 
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 4; i++)
     {
         /* code */
-tcflush(sfd, TCIFLUSH);
+
         write(sfd, buf, 8);
 
-        int count = getBlock(buf_read, 2000, 100, sfd);
+        int count = getBlock(buf_read, 1000, 100, sfd);
 
-
-    
         printf("data count = %d: ", count);
         for (size_t j = 0; j < 8; j++)
         {
@@ -111,88 +207,5 @@ tcflush(sfd, TCIFLUSH);
         printf("\r\n");
     }
     close(sfd);
-
-    // while (1)
-    // {
-    //     /* code */
-    // }
-
-    //   if (config_data == NULL)
-    //   {
-    //     printf("error create config data\n");
-    //   }
+    pthread_join( MBSlave_Thread_id , NULL);
 }
-
-// struct strstr
-// {
-//     char *str,
-//          *one,
-//          *two;
-// };
-// typedef struct strstr *STRSTR;
-
-// // void split(STRSTR str)
-// // {
-// //     int i;
-// //     char *temp = str->str;
-
-// //     //while(isspace(*(str->str)))
-// //     //    str->str++;
-
-// //     str->one = strtok(str->str, " \t\n");
-// // /*     for(i = 0; i < strlen(str->one); i++)
-// //     {
-// //         if(!isspace(str->one[i]))
-// //             str->str++;
-// //     }
-
-// //     str->str++; */
-
-// // /*         while(isspace(*(str->str)))
-// //         str->str++;
-// //  */
-
-// //    // if(str->str != NULL)
-// //    // {
-// //      //   puts("In null if");
-// //         str->two = strtok(NULL, " \t\n");
-// //    //test1  }
-
-// //     str->str = temp;
-// // }
-
-/*     STRSTR str = malloc(sizeof(struct strstr));
-    str->str = malloc(256);
-
-    fgets(str->str, 256, stdin);
-
-
-
-
-    //split(str);
-    printf("%s, %s\n", str->one, str->two);
-
-    free(str->str);
-    free(str); */
-// config_data_t config_1;
-
-// write(fp,"west",4);
-
-// close(fp);
-
-//   int sfd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY);
-//   if (sfd == -1)
-//   {
-//     printf("Error no is : %d\n", errno);
-
-//     //return (-1);
-//   };
-// return (0);
-//   char buf[] = "hello---new";
-//   char buf2[11];
-//   int count = write(sfd, buf, 11);
-//   count = read(sfd, buf2, 11);
-//   buf2[11] = 0;
-//   printf("%s", buf2);
-//   close(sfd);
-// }
