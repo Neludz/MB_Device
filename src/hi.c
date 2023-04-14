@@ -14,7 +14,22 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <stdarg.h>
 #include "user_lib/mb_dev.h"
+#include "user_lib/configini.h"
+#include "modbus_hard.h"
+
+#define LOG_ERR(fmt, ...)	\
+	fprintf(stderr, "[ERROR] <%s:%d> : " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
+
+#define LOG_INFO(fmt, ...)	\
+	fprintf(stdout, "[INFO] : " fmt "\n", __VA_ARGS__)
+
+
+#define CONFIG_READ_FILE		"modbus_config.cnf"
+#define CONFIG_SAVE_FILE		"new_modbus_config.cnf"
+
+
 
 #define MB_PORT 5000
 
@@ -23,20 +38,20 @@ mb_config_data_t *config_data;
 extern void (*test_pr[NUM_REG_TYPE])(void);
 extern void (*test_pr1[NUM_REG_TYPE])(void);
 
-int getBlock(uint8_t *buf, int Timeout, int maxbytes, int id)
+int get_block(uint8_t *buf, int timeout, int maxbytes, int id)
 {
     int bytes, bytes_count = 0, read_count = 0;
     int time_span = 0;
     tcflush(id, TCIFLUSH);
     tcdrain(id);
-    ioctl(id, FIONREAD, &bytes);
-
+   //ioctl(id, FIONREAD, &bytes);
+    //LOG_INFO("%s","test!!!!!!!!!!!");
     for (;;)
     {
-        usleep(10000);
+        usleep(20000);
         ioctl(id, FIONREAD, &bytes);
-        bytes_count += bytes;
-        if (bytes_count >= maxbytes)
+       // bytes_count += bytes;
+        if ((bytes_count + bytes) >= maxbytes)
         {
             printf(" if (bytes_count >= maxbytes) = %d \n", bytes_count);
             return 0;
@@ -44,15 +59,19 @@ int getBlock(uint8_t *buf, int Timeout, int maxbytes, int id)
 
         if (bytes)
         {
-            read_count = read(id, buf, bytes);
-            if (read_count != bytes)
+            read_count = read(id, buf+bytes_count, bytes);
+            bytes_count += read_count;
+            //printf("read_count %d \n", read_count);
+            //printf("buf[0]: %d\n", buf[0]);
+            if ((read_count == -1) || (read_count != bytes))
             {
                 printf("read_count != bytes");
                 return 0;
             }
         }
         time_span++;
-        if ((((Timeout / 10) < time_span) && (!bytes_count)) ||
+         // printf("time_span %d \n", time_span);
+        if ((((timeout / 20) < time_span) && (!bytes_count)) ||
             ((bytes_count) && (!bytes)))
             return bytes_count;
     }
@@ -64,7 +83,7 @@ int getBlock(uint8_t *buf, int Timeout, int maxbytes, int id)
 /*
  * This will handle connection for each client
  * */
-void *connection_handler(void *socket_desc)
+void *connection_thread_handler(void *socket_desc)
 {
     //Get the socket descriptor
     int sock = *(int*)socket_desc;
@@ -105,7 +124,7 @@ void *connection_handler(void *socket_desc)
     return 0;
 } 
 
-void *MBSlave_Thread_handler(void *ptr)
+void *mbslave_thread(void *ptr)
 {
     int socket_desc, client_sock, cli_len;
     struct sockaddr_in server, client;
@@ -137,7 +156,7 @@ void *MBSlave_Thread_handler(void *ptr)
     {
         printf("Connection accepted\n");
 
-        if (pthread_create(&thread_id, NULL, connection_handler, (void *)&client_sock) < 0)
+        if (pthread_create(&thread_id, NULL, connection_thread_handler, (void *)&client_sock) < 0)
         {
             perror("could not create thread");
             return 0;
@@ -158,13 +177,22 @@ void *MBSlave_Thread_handler(void *ptr)
 int main(void)
 {
     printf("\r\n************ start_modbus_mb ************\r\n\r\n");
-    pthread_t MBSlave_Thread_id;
 
-    if (pthread_create(&MBSlave_Thread_id, NULL, MBSlave_Thread_handler, NULL) < 0)
-    {
-        perror("MBSlave_Thread not creatr");
-    }
+Config *cfg = NULL;
+if (ConfigReadFile(CONFIG_READ_FILE, &cfg) != CONFIG_OK) {
+ 		LOG_ERR("ConfigOpenFile failed for %s", CONFIG_READ_FILE);
+		return 0;
+	}
+mh_Slave_Init(cfg);
+ConfigFree(cfg);
 
+    // pthread_t mbslave_thread_id;
+
+    // if (pthread_create(&mbslave_thread_id, NULL, mbslave_thread, NULL) < 0)
+    // {
+    //     perror("MBSlave_Thread not creatr");
+    // }
+//ttyS0
     int sfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
 
     if (sfd == -1)
@@ -173,31 +201,37 @@ int main(void)
 
         return (-1);
     };
+   // fprintf(stdout, "fprintf\n");
+
     struct termios options;
     tcgetattr(sfd, &options);
-    cfsetspeed(&options, B115200);
-    cfmakeraw(&options);
+    cfsetspeed(&options, 9600);
+    //cfmakeraw(&options);
     options.c_cflag &= ~CSTOPB;
     options.c_cflag |= CLOCAL;
     options.c_cflag |= CREAD;
     options.c_cc[VTIME] = 0;
     options.c_cc[VMIN] = 0;
+    cfmakeraw(&options);
     tcsetattr(sfd, TCSANOW, &options);
 
     // test_pr[0]();
     // test_pr1[0]();
-    //  config_data = mb_config("config.txt");
+    // config_data = mb_config("config.txt");
 
     char buf[] = {0x01, 0x03, 0x00, 0x01, 0x00, 0x28, 0x14, 0x14};
     uint8_t buf_read[120];
 
     for (size_t i = 0; i < 4; i++)
     {
+       //tcflush(sfd, TCIOFLUSH );
+       // usleep(50000);
         /* code */
-
+      //  tcflush(sfd, TCIOFLUSH);
+      //  tcflush(sfd, TCIFLUSH);
         write(sfd, buf, 8);
 
-        int count = getBlock(buf_read, 1000, 100, sfd);
+        int count = get_block(buf_read, 1000, 100, sfd);
 
         printf("data count = %d: ", count);
         for (size_t j = 0; j < 8; j++)
@@ -207,5 +241,8 @@ int main(void)
         printf("\r\n");
     }
     close(sfd);
-    pthread_join( MBSlave_Thread_id , NULL);
+    while (1)
+    {
+      ;
+    }
 }

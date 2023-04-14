@@ -12,7 +12,13 @@
             "termios.h": "c",
             "unistd.h": "c",
             "stdint.h": "c",
-            "pthread.h": "c"
+            "pthread.h": "c",
+            "mb_dev.h": "c",
+            "syslog.h": "c",
+            "type_traits": "c",
+            "configini.h": "c",
+            "string.h": "c",
+            "types.h": "c"
         },
         "makefile.makePath": "make",
         "makefile.launchConfigurations": [

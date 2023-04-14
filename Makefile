@@ -1,6 +1,6 @@
 #compiler and linker flags
 CC			:= gcc
-SRC_DIRS	:= src	src/user_lib
+SRC_DIRS	:= src	src/user_lib	src/user_lib/mb_slave
 INC_DIRS	:= 
 LIB_DIRS	:=
 BIN_DIR 	:= bin
@@ -19,8 +19,10 @@ TARGETDIRS 	:= $(foreach dir, $(SRC_DIRS), $(addprefix $(OBJ_DIR)/, $(dir)))
 SRC_FILES	:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
 H_FILES		:= $(foreach dir,$(SRC_DIRS) $(INC_DIRS),$(wildcard $(dir)/*.h))
 OBJ_FILES	:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c, %.o, $(SRC_FILES)))
-OUTPUT		:= $(BIN_DIR)/$(BIN_EXE)
-#OUTPUT		:= $(BIN_DIR)/$(if $(findstring Windows_NT, $(OS)),$(BIN_EXE).exe,$(BIN_EXE))
+#OUTPUT		:= $(BIN_DIR)/$(BIN_EXE)
+
+# OS specific part
+OUTPUT		:= $(BIN_DIR)/$(if $(findstring Windows_NT, $(OS)),$(BIN_EXE).exe,$(BIN_EXE))
 
 VPATH = $(SRC_DIRS)
 
