@@ -8,6 +8,7 @@
 #include <user_lib/configini.h>
 #include <modbus.h>
 #include <pthread.h>
+#include <arpa/inet.h>
 
 //config section
 #define CONFIG_MB_TCP_SLAVE   "MB_TCP_SLAVE_"
@@ -19,7 +20,8 @@
 #define CONFIG_TCP_PORT         "Port"
 #define DEFAULT_PORT            502
 #define CONFIG_ADDR_ID          "Addr_ID"
-#define DEFAULT_ADDR            1
+#define ANY_MB_ADDR             0
+#define DEFAULT_MB_ADDR         ANY_MB_ADDR
 
 // typedef struct
 // {

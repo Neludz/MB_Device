@@ -100,8 +100,8 @@ typedef struct  					// Main program passes interface data to Modbus stack.
 #if (MB_TCP_PERMISSION == 1)
     MBType_t	mb_frame_type;		//
 #endif 
-    void	    *user_data;		    //
 #if (MB_CALLBACK_REG == 1)
+    void	    *user_data;		    //
     void   		(*wr_callback) ( void *mbb);    //for span of register, use "mb_reg_option_check" in this function for every register
 #endif
     void    	(*f_start_trans) ( void *mbb);      //start transmit

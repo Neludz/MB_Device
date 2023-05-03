@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -27,38 +28,15 @@
 // Variable
 //-----------------------------------------------------------------------
 
+pthread_mutex_t mutexMBbuf_main = PTHREAD_MUTEX_INITIALIZER;
 uint16_t MBbuf_main[MB_NUM_BUF];
-
-
-// struct kfifo fifo_modbus;
-//  xQueueHandle xModbusQueue;
-//  TimerHandle_t rs485_timer_handle;
-//  TaskHandle_t m_modbus_task_handle;
-
-// volatile MBStruct_t MB_RS485;
-
-uint8_t RS485_MB_Buf[MB_FRAME_MAX];
 extern const RegParameters_t MBRegParam[];
 
 // //-----------------------------------------------------------------------
 // // Task function
 // //-----------------------------------------------------------------------
-void *mh_slave_thread(void *ptr)
-{
 
 
-}
-
-// void mh_task_Modbus (void *pvParameters)
-// {
-//     MBStruct_t *st_mb;
-//     vTaskDelay(3000);
-//     while(1)
-//     {
-//         xQueueReceive(xModbusQueue,&st_mb,portMAX_DELAY);
-//         mb_parsing((MBStruct_t*) st_mb);
-//     }
-// }
 
 // //-----------------------------------------------------------------------
 // // Function
@@ -70,7 +48,7 @@ void *connection_tcp_thread_handler(void *ptr)
 {
     // Get the socket descriptor
     mb_tcp_thread_data_t *data_tcp_inst;
-    data_tcp_inst = (mb_tcp_thread_data_t*)ptr;
+    data_tcp_inst = (mb_tcp_thread_data_t *)ptr;
     int sock = data_tcp_inst->Client_Sock_Inst;
     int read_size;
     char *message, client_message[2000];
@@ -78,21 +56,18 @@ void *connection_tcp_thread_handler(void *ptr)
     // Receive a message from client
     while ((read_size = recv(sock, client_message, 2000, 0)) > 0)
     {
-        pthread_mutex_lock(&data_tcp_inst->socket_mutex);
-        if  ((read_size < MB_FRAME_MAX )&& (mb_instance_idle_check(&data_tcp_inst->MB_Data_Inst)))
+        pthread_mutex_lock(&mutexMBbuf_main);
+        // pthread_mutex_lock(&data_tcp_inst->socket_mutex);
+        if ((read_size < MB_FRAME_MAX) && (mb_instance_idle_check(&data_tcp_inst->MB_Data_Inst)))
         {
-        memcpy(data_tcp_inst->Buf_Data, client_message, read_size);
-        data_tcp_inst->MB_Data_Inst.mb_index = (uint8_t)read_size;
-        data_tcp_inst->MB_Data_Inst.user_data = &sock;       
-        mb_parsing(&data_tcp_inst->MB_Data_Inst);      
+            memcpy(data_tcp_inst->Buf_Data, client_message, read_size);
+            data_tcp_inst->MB_Data_Inst.mb_index = (uint8_t)read_size;
+            data_tcp_inst->MB_Data_Inst.user_data = &sock;
+            mb_parsing(&data_tcp_inst->MB_Data_Inst);
         }
-        pthread_mutex_unlock(&data_tcp_inst->socket_mutex);
-        // Send the message back to client
-        //write(sock, client_message, strlen(client_message));
+        pthread_mutex_unlock(&mutexMBbuf_main);
+        // pthread_mutex_unlock(&data_tcp_inst->socket_mutex);
         printf("read len: %d\n", read_size);
-        //printf("read data: %s\n", client_message);
-        // clear the message buffer
-        //memset(client_message, 0, 2000);
     }
 
     if (read_size == 0)
@@ -108,11 +83,12 @@ void *connection_tcp_thread_handler(void *ptr)
     return 0;
 }
 
-void *mb_tcp_slave_thread (void *ptr)
+void *mb_tcp_slave_thread(void *ptr)
 {
-    //int sock = *(int*)socket_desc;
-    mb_tcp_thread_data_t *data_tcp_inst ;
-    data_tcp_inst = (mb_tcp_thread_data_t*)ptr;
+    // int sock = *(int*)socket_desc;
+    char buf[20];
+    mb_tcp_thread_data_t *data_tcp_inst;
+    data_tcp_inst = (mb_tcp_thread_data_t *)ptr;
     int socket_desc, client_sock, cli_len;
     struct sockaddr_in server, client;
     pthread_t thread_id;
@@ -125,8 +101,8 @@ void *mb_tcp_slave_thread (void *ptr)
     }
     // Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons( data_tcp_inst->Port);
+    server.sin_addr.s_addr = htons(INADDR_ANY);
+    server.sin_port = htons(data_tcp_inst->Port);
     // Bind
     if (bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
@@ -141,9 +117,9 @@ void *mb_tcp_slave_thread (void *ptr)
     cli_len = sizeof(struct sockaddr_in);
     while ((client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t *)&cli_len)))
     {
-        printf("Connection accepted\n");
+        inet_ntop(AF_INET, &client.sin_addr, buf, sizeof(buf));
+        printf("Connection accepted, addr: %s\n", buf);
         data_tcp_inst->Client_Sock_Inst = client_sock;
-
         if (pthread_create(&thread_id, NULL, connection_tcp_thread_handler, (void *)data_tcp_inst) < 0)
         {
             perror("could not create thread");
@@ -154,7 +130,6 @@ void *mb_tcp_slave_thread (void *ptr)
         // pthread_join( thread_id , NULL);
         printf("Handler assigned\n");
     }
-
     if (client_sock < 0)
     {
         perror("accept failed");
@@ -165,6 +140,7 @@ void *mb_tcp_slave_thread (void *ptr)
 int32_t mh_Slave_Init(Config *cfg)
 {
     uint32_t i, len, j, tcp_port;
+    in_addr_t addr;
     char strFullSection[64];
     pthread_t MBslave_thread_id;
     mb_tcp_thread_data_t *MB_tcp_thread_data;
@@ -192,23 +168,20 @@ int32_t mh_Slave_Init(Config *cfg)
             MB_tcp_thread_data->MB_Data_Inst.er_frame_bad = EV_NOEVENT;
             MB_tcp_thread_data->MB_Data_Inst.mb_state = MB_STATE_IDLE;
             MB_tcp_thread_data->MB_Data_Inst.p_mb_buff = MB_tcp_thread_data->Buf_Data;
-            ConfigReadInt(cfg, strFullSection, CONFIG_ADDR_ID, &j, DEFAULT_ADDR);
+            ConfigReadInt(cfg, strFullSection, CONFIG_ADDR_ID, &j, DEFAULT_MB_ADDR);
             MB_tcp_thread_data->MB_Data_Inst.slave_address = (uint8_t)j;
             ConfigReadInt(cfg, strFullSection, CONFIG_TCP_FRAME_TYPE, &j, 0);
             if (j)
                 MB_tcp_thread_data->MB_Data_Inst.mb_frame_type = MB_TYPE_TCP;
             else
                 MB_tcp_thread_data->MB_Data_Inst.mb_frame_type = MB_TYPE_RTU;
+            ConfigReadInt(cfg, strFullSection, CONFIG_TCP_PORT, &tcp_port, DEFAULT_PORT);
+            MB_tcp_thread_data->Port = tcp_port;
             MB_tcp_thread_data->MB_Data_Inst.wr_callback = mh_Callback_TCP;
             MB_tcp_thread_data->MB_Data_Inst.f_start_trans = mh_TCP_Transmit_Start;
             MB_tcp_thread_data->MB_Data_Inst.f_start_receive = NULL;
-            ConfigReadInt(cfg, strFullSection, CONFIG_TCP_PORT, &tcp_port, DEFAULT_PORT);
- printf("port 1 : %d \n", tcp_port);
- 
-            MB_tcp_thread_data->Port = tcp_port;
-           printf("port 2 : %d \n", MB_tcp_thread_data->Port ); 
-            
-            pthread_mutex_init(&MB_tcp_thread_data->socket_mutex, NULL);
+
+            // pthread_mutex_init(&MB_tcp_thread_data->socket_mutex, NULL);
 
             if (pthread_create(&MBslave_thread_id, NULL, mb_tcp_slave_thread, (void *)MB_tcp_thread_data) < 0)
             {
@@ -222,9 +195,9 @@ int32_t mh_Slave_Init(Config *cfg)
 void mh_TCP_Transmit_Start(void *mbb)
 {
     MBStruct_t *st_mb;
-    st_mb = (void*) mbb;
+    st_mb = (void *)mbb;
     printf("Callback: %s \n", __FUNCTION__);
-    write(*(int*)st_mb->user_data, st_mb->p_mb_buff, st_mb->response_size);
+    write(*(int *)st_mb->user_data, st_mb->p_mb_buff, st_mb->response_size);
     st_mb->mb_state = MB_STATE_IDLE;
 }
 

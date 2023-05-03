@@ -1,6 +1,6 @@
 #compiler and linker flags
 CC			:= gcc
-SRC_DIRS	:= src	src/user_lib	src/user_lib/mb_slave
+SRC_DIRS	:= src	src/user_lib src/user_lib/mb_slave src/user_lib/mb_master
 INC_DIRS	:= 
 LIB_DIRS	:=
 BIN_DIR 	:= bin

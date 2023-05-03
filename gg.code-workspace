@@ -18,7 +18,13 @@
             "type_traits": "c",
             "configini.h": "c",
             "string.h": "c",
-            "types.h": "c"
+            "types.h": "c",
+            "typeinfo": "c",
+            "modbus_hard.h": "c",
+            "inet.h": "c",
+            "in.h": "c",
+            "inttypes.h": "c",
+            "modbus.h": "c"
         },
         "makefile.makePath": "make",
         "makefile.launchConfigurations": [
