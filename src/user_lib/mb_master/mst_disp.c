@@ -21,11 +21,10 @@
 #include <errno.h>
 #include <stdint.h>
 #include <ctype.h>
-#include "user_lib/configini.h"
+
 //-----------------------------------------------------------------------
 // Variable
 //-----------------------------------------------------------------------
-
 
 // //-----------------------------------------------------------------------
 // // Function
@@ -37,9 +36,8 @@ static mst_ret_t mst_modbus_init(mst_t *mst);
 // //-----------------------------------------------------------------------
 // // State machine processing
 // //-----------------------------------------------------------------------
-mst_ret_t mst_modbus_iteration(mst_t *mst)
+mst_ret_t mst_modbus_iteration(mst_t *mst, mst_event_t  event)
 {
-
     switch (mst->state)
     {
     case MST_INIT:
@@ -49,18 +47,17 @@ mst_ret_t mst_modbus_iteration(mst_t *mst)
         mst->state = MST_DISCONNECT;
         /* fall-through */
     case MST_DISCONNECT:
-        if (mst_disconnect(mst) == RET_ERROR)
+        if (mst_disconnect(mst) != RET_OK)
             return RET_ERROR;
         break;
     case MST_PREPARE_CONNECT:
-        if (mst_prepare_connect(mst) == RET_ERROR)
+        if (mst_prepare_connect(mst) != RET_OK)
             return RET_ERROR;
         break;
     case MST_CREATE_REQ:
         if (mst_create_request(mst) == RET_ERROR)
             return RET_ERROR;
         break;
-
     default:
         break;
     }
@@ -72,11 +69,13 @@ mst_ret_t mst_modbus_iteration(mst_t *mst)
 // //-----------------------------------------------------------------------
 static mst_ret_t mst_modbus_init(mst_t *mst)
 {
+    if (mst->default_cb == NULL)
+        return RET_ERROR;
     mst->request_number = 0;
     mst->device_number = 0;
     mst->state = MST_IDLE;
-    memset(mst->lan_state, 0, sizeof(mst->lan_state)*mst->max_device);
-  
+    memset(mst->lan_state, 0, sizeof(mst->lan_state) * mst->max_device);
+    memset(mst->event, 0, sizeof(mst->event) * mst->max_device);
     return RET_OK;
 }
 
@@ -85,29 +84,20 @@ static mst_ret_t mst_modbus_init(mst_t *mst)
 // //-----------------------------------------------------------------------
 static mst_ret_t mst_disconnect(mst_t *mst)
 {
-    // mst_ret_t ret = RET_OK;
-    // if (mst->state == MST_DISCONNECT)
-    // {
-    //     if (mst->disconnect != NULL)
-    //     {
-    //         mst->cb_data.device_number = mst->device_number;
-    //         mst->cb_data.request_number = mst->request_number;
-    //         ret = mst->disconnect(&mst->cb_data);
-    //         if (ret == RET_OK)
-    //         {
-    //             mst->state = MST_PREPARE_CONNECT;
-    //             return RET_OK;
-    //         }
-    //         else if (ret == RET_WAIT)
-    //             return RET_OK;
-    //     }
-    //     else
-    //     {
-    //         mst->state = MST_PREPARE_CONNECT;
-    //         return RET_OK;
-    //     }
-    // }
-    // return RET_ERROR;
+    mst_ret_t ret;
+    ret = mst->default_cb(mst);
+    if (ret == RET_OK)
+    {
+        mst->state = MST_PREPARE_CONNECT;
+        return RET_OK;
+    }
+    else if (ret == RET_WAIT)
+    {
+        mst->state = MST_WAIT;
+        return RET_OK;
+    }
+    mst->state = MST_ERROR;
+    return RET_ERROR;
 }
 
 // //-----------------------------------------------------------------------
@@ -174,5 +164,5 @@ static mst_ret_t mst_create_request(mst_t *mst)
     // return RET_ERROR;
 }
 
-    // buf_ptr[mbb->mb_index++] = (uint8_t)(*(mbb->p_read + RegIndx) >> 8);
-    // buf_ptr[mbb->mb_index++] = (uint8_t)(*(mbb->p_read + RegIndx) & 0xFF);
+// buf_ptr[mbb->mb_index++] = (uint8_t)(*(mbb->p_read + RegIndx) >> 8);
+// buf_ptr[mbb->mb_index++] = (uint8_t)(*(mbb->p_read + RegIndx) & 0xFF);

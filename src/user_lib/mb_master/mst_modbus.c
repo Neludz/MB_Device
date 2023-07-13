@@ -79,18 +79,3 @@ unsigned int mst_crc16(unsigned char *puch_msg, unsigned int data_len)
     }
     return crc_word;
 }
-
-// //-----------------------------------------------------------------------
-// // Function
-// //-----------------------------------------------------------------------
-
-void mst_init_messages (mst_t *mst)
-{
-    mst->msg.id = 0;
-    mst->msg.data = NULL;
-}
-
-void mst_send_messages (uint8_t mst_inst_id, char msg_id, void *data)
-{
-
-}

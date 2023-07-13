@@ -24,7 +24,11 @@
             "inet.h": "c",
             "in.h": "c",
             "inttypes.h": "c",
-            "modbus.h": "c"
+            "modbus.h": "c",
+            "mst_disp.h": "c",
+            "stdio.h": "c",
+            "ioctl.h": "c",
+            "mst_modbus_config.h": "c"
         },
         "makefile.makePath": "make",
         "makefile.launchConfigurations": [

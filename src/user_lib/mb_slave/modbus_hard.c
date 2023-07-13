@@ -111,7 +111,7 @@ void *mb_tcp_slave_thread(void *ptr)
         return 0;
     }
     // Listen
-    listen(socket_desc, 1);
+    int ret = listen(socket_desc, 1);
     // Accept and incoming connection
     printf("Waiting for incoming connections on port %d...\n", data_tcp_inst->Port);
     cli_len = sizeof(struct sockaddr_in);
@@ -194,10 +194,11 @@ int32_t mh_Slave_Init(Config *cfg)
 
 void mh_TCP_Transmit_Start(void *mbb)
 {
+    ssize_t ret;
     MBStruct_t *st_mb;
     st_mb = (void *)mbb;
     printf("Callback: %s \n", __FUNCTION__);
-    write(*(int *)st_mb->user_data, st_mb->p_mb_buff, st_mb->response_size);
+    ret = write(*(int *)st_mb->user_data, st_mb->p_mb_buff, st_mb->response_size);
     st_mb->mb_state = MB_STATE_IDLE;
 }
 
