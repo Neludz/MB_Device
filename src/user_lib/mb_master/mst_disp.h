@@ -1,10 +1,10 @@
 #ifndef MASTER_DISP_H_INCLUDED
 #define MASTER_DISP_H_INCLUDED
-
 #include <stdbool.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include "mst_modbus.h"
 #include "mst_modbus_config.h"
 
 //-----------------------------------------------------------------------
@@ -17,6 +17,9 @@
 
 #define MST_ANY_ADDRESS 00 /* 0 - any address						*/
 #define MST_MAX_REG 120    /*max quantity registers in inquiry. Should be less than MB_FRAME_MAX considering service bytes. Use for 03 function*/
+
+#define MST_TRANSACTION_ID_MASK 0xFF
+#define ACYCLIC_FIFO_SIZE 0xFF // power of 2
 
 #define MST_FUNC_NONE 00
 #define MST_FUNC_READ_COILS 01
@@ -36,6 +39,9 @@
 #define NOTIFIED_WRITE 04
 #define NOTIFIED_CONNECT 05
 #define NOTIFIED_PARSE 06
+
+#define F_TYPE_RTU (0x00UL << 0)
+#define F_TYPE_TCP (0x01UL << 0)
 
 typedef enum
 {
@@ -57,22 +63,15 @@ typedef enum
 //     MST_STATE_CONNECTED,	//
 // } MSTDataSt_t;
 
-typedef enum
-{
-    RET_OK = 0,
-    RET_ERROR,
-    RET_WAIT,
-    RET_WAIT_MESSAGE,
-    RET_NEXT_DEVICE,
-    RET_NEXT_REQUEST,
-    RET_REPEAT_REQUEST,
-} mst_ret_t;
+#define mst_event_t uint8_t
+#define mst_state_t uint8_t
 
-typedef enum
+enum
 {
     MST_INIT,
     MST_IDLE,
     MST_DONE,
+    MST_WAIT,
     MST_DISCONNECT,
     MST_PREPARE_CONNECT,
     MST_CONNECT,
@@ -84,19 +83,9 @@ typedef enum
     MST_NEXT_REQ,
     MST_SERVICE,
     MST_ACYCLIC_CONNECT,
-} mst_state_t;
-
-typedef struct
-{
-    char id;
-    void *data;
-} mst_msg_t;
-
-typedef enum
-{
-    MST_TYPE_RTU,
-    MST_TYPE_TCP
-} mst_type_t;
+    MST_TIMEOUT_CONNECT,
+    MST_TIMEOUT_REQUEST,
+};
 
 #define LAN_TRY_PERMISSION (0x01 << 4) /* 0b00010000 */
 #define LAN_ERROR_BIT (0x01 << 5)      /* 0b00100000 */
@@ -105,57 +94,74 @@ typedef enum
 
 typedef struct
 {
-    uint8_t *buf;
-    uint16_t len;
-    uint16_t status;
-    const mst_dev_param_t *dev_param_inst;
-    void *socket;
-    void *user_data;
-} cb_out_t;
-
-typedef struct
-{
-    mst_type_t frame_type;
-    uint8_t *w_data_buf;
     uint8_t dev_id;
     uint8_t func_id;
-    uint16_t reg_id; 
+    uint16_t reg_id;
     uint16_t w_len;
-    void *socket;
+    uint32_t req_flags;
     void *user_data;
-    mst_ret_t (*acyclic_cb)(cb_out_t *data, mst_state_t event);
+    uint8_t *w_data_buf;
 } cb_req_data_t;
 
-
-typedef struct
+struct mst_s
 {
     mst_state_t state;
     uint16_t request_number;
     uint16_t device_number;
     uint16_t max_device;
     uint8_t *lan_state;
-    mst_msg_t msg;
-    uint32_t notified_value;
-    void *socket;
-    void *user_data;
-    const mst_dev_param_t *dev_param;
-    mst_ret_t (*sm_user_cb)(cb_data_t *data, cb_out_t out, mst_state_t event);
+    uint8_t *event;`
+    mst_event_t msg_event;
+    uint8_t trans_id;
+    uint16_t len;
+    mst_excep_t parse_status;
+    cb_req_data_t current_req_inst;
+    const mst_dev_param_t *dev_params;
+    mst_ret_t (*default_cb)(const mst_t *mst_data);
     uint8_t frame_buf[MST_FRAME_MAX];
-} mst_t;
+};
 
-#define MST_INSTANCE_DEF(instance_name,                                            \
-                         user_ev_handler,                                          \
-                         dev_params)                                               \
-    static const mst_dev_param_t instance_name##_dev_param[] = {dev_params};       \
-    static uint8_t instance_name##_lan_state[sizeof(instance_name##_dev_param) /   \
-                                             sizeof(mst_dev_param_t)];             \
-    static mst_t(instance_name) = {                                                \
-        .sm_user_cb = user_ev_handler,                                             \
-        .dev_param = instance_name##_dev_param,                                    \
-        .max_device = sizeof(instance_name##_dev_param) / sizeof(mst_dev_param_t), \
-        .state = MST_INIT,                                                         \
-        .lan_state = instance_name##_lan_state,                                    \
+#define MST_INSTANCE_DEF(instance_name,                                                \
+                         default_ev_handler,                                           \
+                         device_params)                                                \
+    enum                                                                               \
+    {                                                                                  \
+        device_params(NAME)                                                            \
+            device_params##_NUM_STRING                                                 \
+    };                                                                                 \
+    static const mst_dev_param_t instance_name##_dev_params[] = {device_params(DATA)}; \
+    static uint8_t instance_name##_lan_state[device_params##_NUM_STRING];              \
+    static uint8_t instance_name##_event[device_params##_NUM_STRING];                  \
+    static mst_t(instance_name) = {                                                    \
+        .default_cb = default_ev_handler,                                              \
+        .dev_params = instance_name##_dev_params,                                      \
+        .max_device = device_params##_NUM_STRING,                                      \
+        .lan_state = instance_name##_lan_state,                                        \
+        .state = MST_INIT,                                                             \
+        .event = instance_name##_event,                                                \
     };
-    
+
+mst_ret_t mst_create_req_buf(mst_t *mst_inst,
+                             cb_req_data_t *req_data,
+                             uint8_t *buf,
+                             uint16_t *buf_len);
+mst_ret_t mst_parse_data(mst_t *mst_inst,
+                         uint8_t *data,
+                         uint16_t *data_len,
+
+                         uint8_t *buf,
+                         uint16_t *buf_len,
+                         mst_excep_t parse_error);
+mst_dev_param_t mst_get_dev_param(mst_t *mst_inst);
+mst_state_t mst_get_status(mst_t *mst_inst);
+uint16_t mst_get_request_number(mst_t *mst_inst);
+mst_ret_t mst_set_notified(mst_t *mst_inst, uint32_t notification_value);
+mst_ret_t mst_get_current_req(mst_t *mst_inst, cb_req_data_t *req_data);
+mst_ret_t mst_set_dev_event(mst_t *mst_inst, uint16_t number_device);
+mst_ret_t mst_set_state(mst_t *mst_inst, mst_state_t state);
+
+mst_event_t mst_get_last_event(mst_t *mst_inst);
+mst_ret_t mst_send_event(mst_t *mst_inst, mst_event_t event);
+mst_ret_t mst_wait_event(mst_t *mst_inst, mst_event_t event);
 
 #endif /* MASTER_DISP_H_INCLUDED */
