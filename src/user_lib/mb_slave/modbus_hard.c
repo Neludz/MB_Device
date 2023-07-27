@@ -125,7 +125,6 @@ void *mb_tcp_slave_thread(void *ptr)
             perror("could not create thread");
             return 0;
         }
-
         // Now join the thread , so that we dont terminate before the thread
         // pthread_join( thread_id , NULL);
         printf("Handler assigned\n");
@@ -204,7 +203,6 @@ void mh_TCP_Transmit_Start(void *mbb)
 
 void mh_Callback_TCP(void *mbb)
 {
-
     printf("Callback: %s \n", __FUNCTION__);
 }
 

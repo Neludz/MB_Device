@@ -1,6 +1,5 @@
 
 #include <mst_modbus.h>
-#include <mst_disp.h>
 
 #include <stdbool.h>
 #include "inttypes.h"
@@ -78,4 +77,110 @@ unsigned int mst_crc16(unsigned char *puch_msg, unsigned int data_len)
         crc_word ^= mst_w_crc_table[n_temp];
     }
     return crc_word;
+}
+//-----------------------------------------------------------------------
+//  create tx buffer
+//----------------------------------------------------------------------
+
+mst_ret_t mst_fill_buff(mst_t *mst)
+{
+    mst_ret_t ret;
+    uint8_t *buf_ptr;
+    uint16_t len = 0, crc;
+    uint32_t i, byte_index = 0;
+    // only user data in request;
+    if (mst->current_req_inst.req_flags & F_TYPE_USER_FILL_BUF)
+    {
+        mst->tx_buf = mst->current_req_inst.w_data_buf;
+        mst->rx_buf = mst->current_req_inst.r_data_buf;
+        mst->len = mst->current_req_inst.len;
+    }
+    // else create request
+    else
+    {
+        // check write data
+        if (mst->current_req_inst.func_id == MST_FUNC_WRITE_MULTIPLE_COILS ||
+            mst->current_req_inst.func_id == MST_FUNC_WRITE_MULTIPLE_REGISTERS)
+        {
+            if (mst->current_req_inst.len < MST_MAX_REG * 2)
+                len = mst->current_req_inst.len + 1; //+1 -> N bytes
+            else
+                return RET_ERROR;
+        }
+        // buf pointer
+        mst->tx_buf = &(mst->frame_buf[0]);
+        mst->rx_buf = &(mst->frame_buf[0]);
+        // create tcp header if needed
+        if (mst->current_req_inst.req_flags & F_TYPE_TCP)
+        {
+            // tcp frame
+            // tcp id
+            mst->frame_buf[0] = mst->trans_id++;
+            mst->frame_buf[1] = 0;
+            // protocol id (0)
+            mst->frame_buf[2] = 0;
+            mst->frame_buf[3] = 0;
+            // len in tcp head
+            len += 6;
+            mst->frame_buf[4] = len >> 8;
+            mst->frame_buf[5] = len & 0xFF;
+            buf_ptr = &(mst->frame_buf[6]);
+        }
+        else
+            buf_ptr = &(mst->frame_buf[0]);
+
+        // modbus address
+        buf_ptr[0] = mst->current_req_inst.dev_id;
+        // function
+        buf_ptr[1] = mst->current_req_inst.func_id;
+        // addr
+        buf_ptr[2] = mst->current_req_inst.reg_id << 8;
+        buf_ptr[3] = mst->current_req_inst.reg_id & 0xFF;
+        switch (buf_ptr[1]) // call function depending on the id function
+        {
+            // fall-through:
+        case MST_FUNC_READ_HOLDING_REGISTER:
+        case MST_FUNC_READ_INPUT_REGISTER:
+        case MST_FUNC_READ_COILS:
+        case MST_FUNC_READ_DISCRETE_INPUTS:
+            // reg count
+            buf_ptr[4] = (mst->current_req_inst.len >> 1) << 8;
+            buf_ptr[5] = (mst->current_req_inst.len >> 1) & 0xFF;
+            len = 6;
+            break;
+            // fall-through:
+        case MST_FUNC_WRITE_SINGLE_COIL:
+        case MST_FUNC_WRITE_REGISTER:
+            // reg count
+            buf_ptr[4] = mst->current_req_inst.data_16 << 8;
+            buf_ptr[5] = mst->current_req_inst.data_16 & 0xFF;
+            len = 6;
+            break;
+            // fall-through:
+        case MST_FUNC_WRITE_MULTIPLE_COILS:
+        case MST_FUNC_WRITE_MULTIPLE_REGISTERS:
+            // reg count
+            buf_ptr[4] = (mst->current_req_inst.len >> 1) << 8;
+            buf_ptr[5] = (mst->current_req_inst.len >> 1) & 0xFF;
+            // byte count
+            buf_ptr[6] = mst->current_req_inst.len;
+            // data
+            for (i = 0; i < (mst->current_req_inst.len >> 1); i++)
+            {
+                buf_ptr[8 + i] = mst->current_req_inst.w_data_buf[i * 2];
+                buf_ptr[7 + i] = mst->current_req_inst.w_data_buf[i * 2 + 1];
+            }
+            len = 7 + buf_ptr[6];
+            break;
+        default:
+            return RET_ERROR;
+        }
+        if (!(mst->current_req_inst.req_flags & F_TYPE_TCP))
+        {
+            crc = mst_crc16(buf_ptr, len);
+            buf_ptr[len++] = crc & 0xFF;
+            buf_ptr[len++] = crc >> 8;
+        }
+        mst->len = len;
+    }
 }

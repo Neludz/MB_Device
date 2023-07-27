@@ -28,7 +28,9 @@
             "mst_disp.h": "c",
             "stdio.h": "c",
             "ioctl.h": "c",
-            "mst_modbus_config.h": "c"
+            "mst_modbus_config.h": "c",
+            "mst_modbus.h": "c",
+            "stdarg.h": "c"
         },
         "makefile.makePath": "make",
         "makefile.launchConfigurations": [

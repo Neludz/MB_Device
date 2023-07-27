@@ -174,12 +174,12 @@ static bool frame_parse(MBStruct_t *mbb)
     if (mbb->mb_frame_type == MB_TYPE_TCP)
     {
         buf_ptr = &mbb->p_mb_buff[6];
-        PDU_len = mbb->mb_index - 4;    //not -6 bytes head length, because in the function 
-                                        //there is a comparison with the frame length 
-                                        //including a checksum of 2 bytes
+        PDU_len = mbb->mb_index - 4; // not -6 bytes head length, because in the function
+                                     // there is a comparison with the frame length
+                                     // including a checksum of 2 bytes
     }
     else
-    {       
+    {
         buf_ptr = mbb->p_mb_buff;
         PDU_len = mbb->mb_index;
     }
@@ -388,16 +388,16 @@ static bool frame_parse(MBStruct_t *mbb)
     }
     else
     {
-        mbb->p_mb_buff[4] = 0;  //(mbb->mb_index >> 8); //uint8_t type
-        mbb->p_mb_buff[5] = (mbb->mb_index & 0xFF); //uint8_t type
-        mbb->response_size = mbb->mb_index+6;
+        mbb->p_mb_buff[4] = 0;                      //(mbb->mb_index >> 8); //uint8_t type
+        mbb->p_mb_buff[5] = (mbb->mb_index & 0xFF); // uint8_t type
+        mbb->response_size = mbb->mb_index + 6;
     }
 #else
     i = mb_CRC16((uint8_t *)buf_ptr, mbb->mb_index); // MBBuff is a pointer, mb_index is a size
     buf_ptr[mbb->mb_index++] = i & 0xFF;             // CRC: Lo then Hi
     buf_ptr[mbb->mb_index++] = i >> 8;
     mbb->response_size = mbb->mb_index;
-#endif   
+#endif
     return NeedResponse ? true : false;
 }
 //-----------------------------------------------------------------------
