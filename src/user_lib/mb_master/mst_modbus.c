@@ -183,4 +183,80 @@ mst_ret_t mst_fill_buff(mst_t *mst)
         }
         mst->len = len;
     }
+    return RET_OK;
+}
+
+//-----------------------------------------------------------------------
+//  parse rx buffer
+//----------------------------------------------------------------------
+
+mst_ret_t mst_parse_buff(mst_t *mst)
+{
+    mst_ret_t ret;
+    uint8_t *buf_ptr;
+    uint16_t len = 0, crc;
+    uint32_t i, byte_index = 0;
+
+    // only user data in request;
+    if (mst->current_req_inst.req_flags & F_TYPE_USER_FILL_BUF)
+    {
+        mst->current_req_inst.len = mst->len;
+    }
+    // else parse request
+    else
+    {
+        len = mst->len;
+        if (len > MST_MAX_REG * 2)
+            return RET_ERROR;
+        // check tcp header if needed
+        if (mst->current_req_inst.req_flags & F_TYPE_TCP)
+        {
+            // check tcp id
+            if (mst->frame_buf[0] != (mst->trans_id - 1))
+                return RET_ERROR;
+            // check len from head
+            len -= 6;
+            if (len != ((mst->frame_buf[4] << 8) | (mst->frame_buf[5])))
+                return RET_ERROR;
+            buf_ptr = &(mst->frame_buf[6]);
+        }
+        else
+        {
+            buf_ptr = &(mst->frame_buf[0]);
+            // check crc
+            if (mst_crc16(buf_ptr, len))
+                return RET_ERROR;
+            else
+                len -= 2;
+        }
+        // check device address
+        if (mst->current_req_inst.dev_id != buf_ptr[0])
+            return RET_ERROR;
+
+        switch (buf_ptr[1]) // call function depending on the id function
+        {
+        // fall-through:
+        case MST_FUNC_READ_COILS:
+        case MST_FUNC_READ_DISCRETE_INPUTS:
+        case MST_FUNC_READ_HOLDING_REGISTER:
+        case MST_FUNC_READ_INPUT_REGISTER:
+            // check read len
+            len -= 3;
+            if (len != buf_ptr[2])
+                return RET_ERROR;
+            mst->rx_buf = &buf_ptr[3];
+            break;
+        case MST_FUNC_WRITE_SINGLE_COIL:
+        case MST_FUNC_WRITE_REGISTER:
+        case MST_FUNC_WRITE_MULTIPLE_COILS:
+        case MST_FUNC_WRITE_MULTIPLE_REGISTERS:
+            len -= 2;
+            mst->rx_buf = &buf_ptr[2];
+            break;
+        default:
+            return RET_ERROR;
+        }
+    }
+    mst->len = len;
+    return RET_OK;
 }

@@ -37,11 +37,14 @@ static mst_ret_t mst_create_request(mst_t *mst);
 static mst_ret_t mst_send_request(mst_t *mst);
 static mst_ret_t mst_parse_request(mst_t *mst);
 static mst_ret_t mst_done(mst_t *mst);
+static mst_ret_t mst_error(mst_t *mst);
+static mst_ret_t mst_next(mst_t *mst);
+static mst_ret_t mst_service(mst_t *mst);
 static mst_ret_t mst_wait(mst_t *mst);
 // //-----------------------------------------------------------------------
 // // State machine processing
 // //-----------------------------------------------------------------------
-mst_ret_t mst_modbus_iteration(mst_t *mst, mst_event_t event)
+mst_ret_t mst_modbus_iteration(mst_t *mst)
 {
     mst_ret_t ret;
     switch (mst->state)
@@ -49,12 +52,12 @@ mst_ret_t mst_modbus_iteration(mst_t *mst, mst_event_t event)
     case MST_INIT:
         ret = mst_modbus_init(mst);
         break;
-    case MST_IDLE:
-        mst->state = MST_DISCONNECT;
-        /* fall-through */
     case MST_DISCONNECT:
         ret = mst_disconnect(mst);
         break;
+    case MST_IDLE:
+        mst->state = MST_PREPARE_CONNECT;
+        /* fall-through */
     case MST_PREPARE_CONNECT:
         ret = mst_prepare_connect(mst);
         break;
@@ -70,10 +73,22 @@ mst_ret_t mst_modbus_iteration(mst_t *mst, mst_event_t event)
     case MST_DONE:
         ret = mst_done(mst);
         break;
+    case MST_ERROR:
+        ret = mst_error(mst);
+        break;
+    case MST_NEXT_DEV:
+    case MST_NEXT_REQ:
+        ret = mst_next(mst);
+        break;
     case MST_WAIT:
         ret = mst_wait(mst);
         break;
+    case MST_SERVICE:
+        ret = mst_service(mst);
+        break;
     default:
+        ret = RET_ERROR;
+        mst->state = MST_SERVICE;
         break;
     }
     return ret;
@@ -85,7 +100,16 @@ mst_ret_t mst_modbus_iteration(mst_t *mst, mst_event_t event)
 static mst_ret_t mst_modbus_init(mst_t *mst)
 {
     if (mst->default_cb == NULL)
-        return RET_ERROR;
+    {
+        mst->state = MST_SERVICE;
+#ifdef USER_DEBUG
+        printf("[ERROR] MST default callback not init \n");
+#endif
+        return RET_SERVICE;
+    }
+    else
+        mst->default_cb(mst);
+
     mst->state = MST_IDLE;
     return RET_OK;
 }
@@ -99,16 +123,19 @@ static mst_ret_t mst_disconnect(mst_t *mst)
     mst_reset_current_event(mst, EVENT_NEXT);
     ret = mst->default_cb(mst);
     if (ret == RET_OK)
-        mst->state = MST_PREPARE_CONNECT;
+        mst->state = MST_NEXT_DEV;
     else if (ret == RET_WAIT)
     {
-        mst->state_after_wait = MST_PREPARE_CONNECT;
+        mst->state_after_wait = MST_NEXT_DEV;
         mst->state = MST_WAIT;
     }
     else
     {
-        mst->state = MST_ERROR;
-        ret = RET_ERROR;
+        mst->state = MST_SERVICE;
+        ret = RET_SERVICE;
+#ifdef USER_DEBUG
+        printf("[ERROR] MST default callback can not disconnect \n");
+#endif
     }
     return ret;
 }
@@ -130,10 +157,6 @@ static mst_ret_t mst_prepare_connect(mst_t *mst)
         ret = mst->default_cb(mst);
         if (ret == RET_OK) // connected
             mst->state = MST_CREATE_REQ;
-        else if (ret == RET_CONNECT_TIMEOUT)
-        {
-            mst->state = MST_ERROR;
-        }
         else if (ret == RET_WAIT)
         {
             // wait connect
@@ -143,6 +166,9 @@ static mst_ret_t mst_prepare_connect(mst_t *mst)
         else
         {
             mst->state = MST_ERROR;
+#ifdef USER_DEBUG
+            printf("[WARNING] MST device [%d] not avalible\n", mst->device_number);
+#endif
             return RET_ERROR;
         }
         return ret;
@@ -162,7 +188,7 @@ static mst_ret_t mst_prepare_connect(mst_t *mst)
     }
     // event-device without event
     mst->state = MST_NEXT_DEV;
-    return RET_NEXT_DEVICE;
+    return RET_OK;
 }
 
 // //-----------------------------------------------------------------------
@@ -182,8 +208,11 @@ static mst_ret_t mst_create_request(mst_t *mst)
 
     if (ret != RET_OK)
     {
-        mst->state = MST_ERROR;
-        ret = RET_ERROR;
+        mst->state = MST_SERVICE;
+#ifdef USER_DEBUG
+        printf("[ERROR] MST device [%d] can't create request\n", mst->device_number);
+#endif
+        ret = RET_SERVICE;
     }
     else
     {
@@ -207,16 +236,10 @@ static mst_ret_t mst_send_request(mst_t *mst)
     else
     {
         mst->state = MST_ERROR;
-        return RET_ERROR;
-    }
-    if (ret != RET_OK)
-    {
-        mst->state = MST_ERROR;
+#ifdef USER_DEBUG
+        printf("[ERROR] MST device [%d] can't send request\n", mst->device_number);
+#endif
         ret = RET_ERROR;
-    }
-    else
-    {
-        mst->state = MST_SEND_REQ;
     }
     return ret;
 }
@@ -234,8 +257,11 @@ static mst_ret_t mst_parse_request(mst_t *mst)
             return RET_OK;
         }
     }
-    mst->state = MST_ERROR;
-    return MST_ERROR;
+#ifdef USER_DEBUG
+    printf("[ERROR] MST device [%d] parsing error\n", mst->device_number);
+#endif
+    mst->state = MST_SERVICE;
+    return RET_SERVICE;
 }
 // //-----------------------------------------------------------------------
 // // done -> OK
@@ -243,6 +269,9 @@ static mst_ret_t mst_parse_request(mst_t *mst)
 static mst_ret_t mst_done(mst_t *mst)
 {
     mst_ret_t ret;
+
+    mst->lan_err_count[mst->device_number] = 0;
+    mst->lan_state[mst->device_number] &= (~LAN_TRY_BITS);
 
     if (mst->dev_params->device_cb)
         ret = mst->dev_params->device_cb(mst);
@@ -252,33 +281,96 @@ static mst_ret_t mst_done(mst_t *mst)
     switch (ret)
     {
     case RET_OK:
+    // fall through
     case RET_NEXT_DEVICE:
         mst->state = MST_NEXT_DEV;
         break;
-   case RET_NEXT_REQUEST:
+    case RET_NEXT_REQUEST:
         mst->state = MST_NEXT_REQ;
         break;
-    case 
+    case RET_REPEAT_REQUEST:
+        mst->state = MST_CREATE_REQ;
+        break;
     default:
+        mst->state = MST_SERVICE;
+        ret = RET_SERVICE;
+#ifdef USER_DEBUG
+        printf("[ERROR] MST device [%d] user parsing while DONE error\n", mst->device_number);
+#endif
         break;
-    }
-
-    if (ret == RET_OK || ret == MST_NEXT_DEV)
-         mst->state = MST_NEXT_DEV;
-    else if (ret == MST_NEXT_REQ)
-        mst->state = MST_NEXT_REQ;
-
-    {
-        mst->state = MST_ERROR;
-        ret = MST_ERROR;
-    }
-    else
-    {
-        mst->state = MST_SEND_REQ;
     }
     return ret;
+}
+// //-----------------------------------------------------------------------
+// // error -> from any state (except service error)
+// //-----------------------------------------------------------------------
+static mst_ret_t mst_error(mst_t *mst)
+{
+    mst_ret_t ret;
+    mst->lan_err_count[mst->device_number]++;
+    mst->lan_state[mst->device_number] &= ~LAN_TRY_PERMISSION;
+    if (mst->lan_err_count[mst->device_number] >= MST_MAX_LAN_ERROR_COUNT)
+    {
+        mst->lan_err_count[mst->device_number] = MST_MAX_LAN_ERROR_COUNT;
+        mst->lan_state[mst->device_number] |= LAN_ERROR_BIT;
+    }
 
+    if (mst->dev_params->device_cb)
+        ret = mst->dev_params->device_cb(mst);
+    else
+        ret = mst->default_cb(mst);
 
+    switch (ret)
+    {
+    case RET_OK:
+    // fall through
+    case RET_NEXT_DEVICE:
+        mst->state = MST_DISCONNECT;
+        break;
+    default:
+        mst->state = MST_SERVICE;
+        ret = RET_SERVICE;
+#ifdef USER_DEBUG
+        printf("[ERROR] MST device [%d] user parsing while ERROR error\n", mst->device_number);
+#endif
+        break;
+    }
+    return ret;
+}
+
+// //-----------------------------------------------------------------------
+// // next
+// //-----------------------------------------------------------------------
+static mst_ret_t mst_next(mst_t *mst)
+{
+    if (mst->state == MST_NEXT_DEV)
+    {
+        mst->device_number++;
+        if (mst->device_number >= mst->device_number)
+            mst->device_number = 0;
+
+        mst->request_number = 0;
+        mst->state = MST_IDLE;
+    }
+    else if (mst->state == MST_NEXT_REQ)
+    {
+        mst->request_number++;
+        mst->state = MST_CREATE_REQ;
+    }
+    return RET_OK;
+}
+
+// //-----------------------------------------------------------------------
+// // service
+// //-----------------------------------------------------------------------
+static mst_ret_t mst_service(mst_t *mst)
+{
+    mst->state = MST_DISCONNECT;
+#ifdef USER_DEBUG
+    printf("[ERROR] MST device [%d] SERVICE\n", mst->device_number);
+#endif
+
+    return RET_OK;
 }
 // //-----------------------------------------------------------------------
 // // wait
@@ -375,4 +467,12 @@ mst_ret_t mst_change_state(mst_t *mst, mst_state_t new_state)
 {
     mst->state = new_state;
     return RET_OK;
+}
+
+// //-----------------------------------------------------------------------
+// // check dispatcher state
+// //-----------------------------------------------------------------------
+mst_state_t mst_check_state(mst_t *mst)
+{
+    return mst->state;
 }

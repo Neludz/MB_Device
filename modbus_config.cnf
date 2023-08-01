@@ -2,6 +2,8 @@
 # comment
 #
 
+# [MB_RTU_SLAVE_X]	
+# [MB_TCP_SLAVE_X]
 #=========================================================
 [MB_TCP_SLAVE_1]	
 		
@@ -14,4 +16,4 @@ TCP_Frame_type =  1             # 1 - "tcp" frame else "rtu on tcp"
 
 Addr_ID = 1                     # 0 - any address
 Port = 5001
-TCP_Frame_type =  1             # 1 - "tcp" frame else "rtu on tcp"
+TCP_Frame_type =  0            # 1 - "tcp" frame else "rtu on tcp"

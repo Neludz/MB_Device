@@ -113,7 +113,6 @@ mb_config_data_t *parse_config(FILE *file)
     fseek(file, 0, SEEK_SET);
     while (fgets(buf, sizeof(buf), file) != NULL)
     {
-
         if ((token = strtok(buf, " \t\n")))
         {
             if (*token == '#')

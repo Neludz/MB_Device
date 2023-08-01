@@ -4,7 +4,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-#include "mst_modbus_config.h"
 
 //-----------------------------------------------------------------------
 // Debug
@@ -18,7 +17,8 @@
 #define MST_MAX_REG 120    /*max quantity registers in inquiry. Should be less than MB_FRAME_MAX considering service bytes. Use for 03 function*/
 
 #define MST_TRANSACTION_ID_MASK 0xFF
-#define ACYCLIC_FIFO_SIZE 0xFF // power of 2
+
+#define MST_MAX_LAN_ERROR_COUNT 0x03
 
 // request flags
 #define F_TYPE_RTU              (0x00UL << 0)
@@ -31,6 +31,7 @@ typedef enum
 {
     RET_OK = 0,
     RET_ERROR,
+    RET_SERVICE,
     RET_WAIT,
     RET_WAIT_MESSAGE,
     RET_NEXT_DEVICE,
@@ -107,7 +108,7 @@ typedef struct
 {
     const char *str_ip;
     const uint16_t port;
-    const uint16_t dev_id;
+    const uint16_t data;
     const uint16_t flag;
     const void *arg_1;
     mst_ret_t (*const device_cb)(mst_t *mst_data);
@@ -148,7 +149,7 @@ struct mst_s
     mst_excep_t parse_status;
     cb_req_data_t current_req_inst;
     const mst_dev_param_t *dev_params;
-    mst_ret_t (*default_cb)(const mst_t *mst_data);
+    mst_ret_t (*default_cb)(mst_t *mst_data);
     uint8_t *tx_buf;
     uint8_t *rx_buf;
     uint8_t frame_buf[MST_FRAME_MAX];
@@ -179,6 +180,7 @@ struct mst_s
         .wait_status = MST_STATUS_FREE,                                                \
     };
 
+mst_ret_t mst_modbus_iteration(mst_t *mst);
 mst_ret_t mst_create_req_buf(mst_t *mst_inst,
                              cb_req_data_t *req_data,
                              uint8_t *buf,
@@ -208,4 +210,5 @@ mst_event_t mst_check_current_event(mst_t *mst, mst_event_t check_event);
 mst_ret_t mst_check_wait(mst_t *mst);
 
 mst_ret_t mst_change_state(mst_t *mst, mst_state_t new_state);
+mst_state_t mst_check_state(mst_t *mst);
 #endif /* MASTER_DISP_H_INCLUDED */

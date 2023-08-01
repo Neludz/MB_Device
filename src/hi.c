@@ -18,8 +18,9 @@
 #include "user_lib/mb_dev.h"
 #include "user_lib/configini.h"
 #include "modbus_hard.h"
-#include "mst_disp.h"
-#include "mst_modbus_config.h"
+#include "mst_hard.h"
+//#include "mst_disp.h"
+
 #define LOG_ERR(fmt, ...) \
     fprintf(stderr, "[ERROR] <%s:%d> : " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 
@@ -29,7 +30,7 @@
 #define CONFIG_READ_FILE "modbus_config.cnf"
 #define CONFIG_SAVE_FILE "new_modbus_config.cnf"
 
-MST_INSTANCE_DEF(test, NULL, MST_BUF_TABLE);
+
 
 uint8_t test3[100];
 uint8_t test2[sizeof(test3) / sizeof(uint8_t)];
@@ -70,17 +71,7 @@ int get_block(uint8_t *buf, int timeout, int maxbytes, int id)
 int main(void)
 {
 
-    cb_req_data_t a;
-    int32_t b = DEV_4;
-    printf("\r\n************ start_modbus_mb ************\r\n\r\n");
-    printf("TEST SIZE is : %d\n", test.max_device);
-    printf("X_MST_PAR 4: %d\n", b);
-    printf("XSize one iteration reg %ld\n", sizeof(mst_dev_param_t));
-    printf("teest DEV_3 string: %s\n", test.dev_params[DEV_3].str_ip);
-    printf("teest DEV_3 string: %d\n", (int)(intptr_t)test.dev_params[DEV_3].arg_1);
 
-    printf("teest DEV_4 string: %s\n", test.dev_params[DEV_4].str_ip);
-    printf("teest DEV_4 string: %d\n", (int)(intptr_t)test.dev_params[DEV_4].arg_1);
     
     Config *cfg = NULL;
     if (ConfigReadFile(CONFIG_READ_FILE, &cfg) != CONFIG_OK)
@@ -91,7 +82,7 @@ int main(void)
     mh_Slave_Init(cfg);
 
     ConfigFree(cfg);
-
+    mst_master_init();
     // ttyS0
     int sfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
 

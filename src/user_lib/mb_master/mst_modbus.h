@@ -20,5 +20,6 @@
 #define MST_FUNC_ERROR							0x80
 
 mst_ret_t mst_fill_buff(mst_t *mst);
+mst_ret_t mst_parse_buff(mst_t *mst);
 unsigned int mst_crc16(unsigned char *puch_msg, unsigned int data_len);
 #endif /* MASTER_MODBUS_H_INCLUDED */
