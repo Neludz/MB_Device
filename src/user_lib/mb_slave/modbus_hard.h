@@ -66,4 +66,6 @@ typedef enum
 int32_t mh_Slave_Init(Config *cfg);
 void mh_TCP_Transmit_Start (void *mbb);
 void mh_Callback_TCP (void *mbb);
+uint16_t mh_get_reset_data_mb_buf(uint16_t number);
+uint16_t mh_get_data_mb_buf(uint16_t number);
 #endif /* MODBUS_HARD_H_INCLUDED */

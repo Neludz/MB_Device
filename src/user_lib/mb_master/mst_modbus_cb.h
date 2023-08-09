@@ -8,9 +8,8 @@
 #include "mst_disp.h"
 
 
-mst_ret_t(mst_user_cb)(mst_t *mst_data);
-
-
-
+mst_ret_t mst_user_cb(mst_t *mst_data);
+mst_ret_t mst_rs_user_cb(mst_t *mst_data);
+mst_ret_t mst_rs_user_write_cb(mst_t *mst_data);
 
 #endif /* MASTER_MODBUS_CB_H_INCLUDED */

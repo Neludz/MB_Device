@@ -149,11 +149,11 @@ static mst_ret_t mst_prepare_connect(mst_t *mst)
     uint32_t lan_state_temp;
     // check connect permission
     if ((((mst->lan_state[mst->device_number] & LAN_TRY_BITS) != LAN_ERROR_BIT) &&
-         ((mst->dev_params->flag & REQUEST_TYPE_MASK_D) == CYCLIC_D)) ||
+         ((mst->dev_params[mst->device_number].flag & REQUEST_TYPE_MASK_D) == CYCLIC_D)) ||
         mst_check_current_event(mst, EVENT_REQUEST))
     {
         mst_reset_current_event(mst, EVENT_REQUEST);
-        mst->lan_state[mst->device_number] &= ~LAN_TRY_PERMISSION;
+        // mst->lan_state[mst->device_number] &= ~LAN_TRY_PERMISSION;
         ret = mst->default_cb(mst);
         if (ret == RET_OK) // connected
             mst->state = MST_CREATE_REQ;
@@ -173,16 +173,18 @@ static mst_ret_t mst_prepare_connect(mst_t *mst)
         }
         return ret;
     }
-    // reate permission for next try
-    else if ((mst->dev_params->flag & REQUEST_TYPE_MASK_D) == CYCLIC_D)
+    // create permission for next try
+    else if ((mst->dev_params[mst->device_number].flag & REQUEST_TYPE_MASK_D) == CYCLIC_D)
     {
         // lan error, prepare future connection permission if posible
         lan_state_temp = LAN_TRY_PERMISSION;
         for (uint32_t i = 0; i < mst->max_device; i++)
         {
             if (mst->lan_state[i] & LAN_TRY_PERMISSION)
+            {
                 lan_state_temp = 0;
-            break;
+                break;
+            }
         }
         mst->lan_state[mst->device_number] |= lan_state_temp;
     }
@@ -198,25 +200,34 @@ static mst_ret_t mst_create_request(mst_t *mst)
 {
     mst_ret_t ret;
 
-    if (mst->dev_params->device_cb)
-        ret = mst->dev_params->device_cb(mst);
+    if (mst->dev_params[mst->device_number].device_cb)
+        ret = mst->dev_params[mst->device_number].device_cb(mst);
     else
         ret = mst->default_cb(mst);
 
     if (ret == RET_OK)
+    {
         ret = mst_fill_buff(mst); // fill request buffer
-
-    if (ret != RET_OK)
-    {
-        mst->state = MST_SERVICE;
+        if (ret != RET_OK)
+        {
+            mst->state = MST_SERVICE;
 #ifdef USER_DEBUG
-        printf("[ERROR] MST device [%d] can't create request\n", mst->device_number);
+            printf("[ERROR] MST device [%d] can't create request\n", mst->device_number);
 #endif
-        ret = RET_SERVICE;
+            ret = RET_SERVICE;
+        }
+        else
+        {
+            mst->state = MST_SEND_REQ;
+        }
     }
-    else
+    else if (ret == RET_NEXT_REQUEST)
     {
-        mst->state = MST_SEND_REQ;
+        mst->state = MST_NEXT_REQ;
+    }
+    else if (ret == RET_NEXT_DEVICE)
+    {
+        mst->state = MST_NEXT_DEV;
     }
     return ret;
 }
@@ -227,11 +238,15 @@ static mst_ret_t mst_send_request(mst_t *mst)
 {
     mst_ret_t ret;
     ret = mst->default_cb(mst);
-    if (ret == RET_OK || ret == RET_WAIT)
+    if (ret == RET_WAIT)
     {
         // wait connect
         mst->state_after_wait = MST_PARSE;
         mst->state = MST_WAIT;
+    }
+    else if (ret == RET_OK)
+    {
+        mst->state = MST_PARSE;
     }
     else
     {
@@ -260,8 +275,8 @@ static mst_ret_t mst_parse_request(mst_t *mst)
 #ifdef USER_DEBUG
     printf("[ERROR] MST device [%d] parsing error\n", mst->device_number);
 #endif
-    mst->state = MST_SERVICE;
-    return RET_SERVICE;
+    mst->state = MST_ERROR;
+    return RET_ERROR;
 }
 // //-----------------------------------------------------------------------
 // // done -> OK
@@ -269,12 +284,12 @@ static mst_ret_t mst_parse_request(mst_t *mst)
 static mst_ret_t mst_done(mst_t *mst)
 {
     mst_ret_t ret;
-
+    mst->trans_id++;
     mst->lan_err_count[mst->device_number] = 0;
     mst->lan_state[mst->device_number] &= (~LAN_TRY_BITS);
 
-    if (mst->dev_params->device_cb)
-        ret = mst->dev_params->device_cb(mst);
+    if (mst->dev_params[mst->device_number].device_cb)
+        ret = mst->dev_params[mst->device_number].device_cb(mst);
     else
         ret = mst->default_cb(mst);
 
@@ -283,7 +298,7 @@ static mst_ret_t mst_done(mst_t *mst)
     case RET_OK:
     // fall through
     case RET_NEXT_DEVICE:
-        mst->state = MST_NEXT_DEV;
+        mst->state = MST_DISCONNECT;
         break;
     case RET_NEXT_REQUEST:
         mst->state = MST_NEXT_REQ;
@@ -307,6 +322,7 @@ static mst_ret_t mst_done(mst_t *mst)
 static mst_ret_t mst_error(mst_t *mst)
 {
     mst_ret_t ret;
+    mst->trans_id++;
     mst->lan_err_count[mst->device_number]++;
     mst->lan_state[mst->device_number] &= ~LAN_TRY_PERMISSION;
     if (mst->lan_err_count[mst->device_number] >= MST_MAX_LAN_ERROR_COUNT)
@@ -315,8 +331,8 @@ static mst_ret_t mst_error(mst_t *mst)
         mst->lan_state[mst->device_number] |= LAN_ERROR_BIT;
     }
 
-    if (mst->dev_params->device_cb)
-        ret = mst->dev_params->device_cb(mst);
+    if (mst->dev_params[mst->device_number].device_cb)
+        ret = mst->dev_params[mst->device_number].device_cb(mst);
     else
         ret = mst->default_cb(mst);
 
@@ -346,7 +362,7 @@ static mst_ret_t mst_next(mst_t *mst)
     if (mst->state == MST_NEXT_DEV)
     {
         mst->device_number++;
-        if (mst->device_number >= mst->device_number)
+        if (mst->device_number >= mst->max_device)
             mst->device_number = 0;
 
         mst->request_number = 0;

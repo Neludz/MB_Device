@@ -1,4 +1,4 @@
-#compiler and linker flags
+#compiler and linker flags ARM copmiler =  aarch64-linux-gnu-gcc
 CC			:= gcc
 SRC_DIRS	:= src	src/user_lib src/user_lib/mb_slave src/user_lib/mb_master
 INC_DIRS	:= 
@@ -6,7 +6,7 @@ LIB_DIRS	:=
 BIN_DIR 	:= bin
 BIN_EXE		:= test
 OBJ_DIR		:= obj
-CPP_FLAGS	:= -O0 -g 
+CPP_FLAGS	:= -O0 -g
 LD_FLAGS	:= -O0
 MAKEFLAGS	:= 
 DEBUG_DEF 	:= -DUSER_DEBUG

@@ -144,6 +144,8 @@ struct mst_s
     uint32_t *event;
     mst_event_t msg_event;
     uint8_t trans_id;
+    void *socket_data;
+    void *user_data;
     uint16_t len;
     mst_frame_bad_events_t er_frame_bad;
     mst_excep_t parse_status;
@@ -211,4 +213,5 @@ mst_ret_t mst_check_wait(mst_t *mst);
 
 mst_ret_t mst_change_state(mst_t *mst, mst_state_t new_state);
 mst_state_t mst_check_state(mst_t *mst);
+mst_ret_t mst_set_event(mst_t *mst, uint32_t id, mst_event_t event);
 #endif /* MASTER_DISP_H_INCLUDED */

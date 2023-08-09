@@ -29,14 +29,14 @@
 //-----------------------------------------------------------------------
 
 pthread_mutex_t mutexMBbuf_main = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexMBSlave_main = PTHREAD_MUTEX_INITIALIZER;
+extern pthread_mutex_t mutex_rs_write ;
 uint16_t MBbuf_main[MB_NUM_BUF];
-extern const RegParameters_t MBRegParam[];
+//extern const RegParameters_t MBRegParam[];
 
 // //-----------------------------------------------------------------------
 // // Task function
 // //-----------------------------------------------------------------------
-
-
 
 // //-----------------------------------------------------------------------
 // // Function
@@ -56,27 +56,33 @@ void *connection_tcp_thread_handler(void *ptr)
     // Receive a message from client
     while ((read_size = recv(sock, client_message, 2000, 0)) > 0)
     {
-        pthread_mutex_lock(&mutexMBbuf_main);
+        pthread_mutex_lock(&mutexMBSlave_main);
         // pthread_mutex_lock(&data_tcp_inst->socket_mutex);
         if ((read_size < MB_FRAME_MAX) && (mb_instance_idle_check(&data_tcp_inst->MB_Data_Inst)))
         {
             memcpy(data_tcp_inst->Buf_Data, client_message, read_size);
             data_tcp_inst->MB_Data_Inst.mb_index = (uint8_t)read_size;
             data_tcp_inst->MB_Data_Inst.user_data = &sock;
+            pthread_mutex_lock(&mutexMBbuf_main);
             mb_parsing(&data_tcp_inst->MB_Data_Inst);
+            pthread_mutex_unlock(&mutexMBbuf_main);
         }
-        pthread_mutex_unlock(&mutexMBbuf_main);
-        // pthread_mutex_unlock(&data_tcp_inst->socket_mutex);
-        printf("read len: %d\n", read_size);
+        pthread_mutex_unlock(&mutexMBSlave_main);
+// pthread_mutex_unlock(&data_tcp_inst->socket_mutex);
+#ifdef USER_DEBUG
+        printf("[MB_SLAVE]: read len: %d\n", read_size);
+#endif
     }
 
     if (read_size == 0)
     {
-        printf("Client disconnected\n");
+#ifdef USER_DEBUG
+        printf("[MB_SLAVE]: client disconnected\n");
+#endif
     }
     else if (read_size == -1)
     {
-        perror("recv failed");
+        perror("[MB_SLAVE_ERROR]: recv failed\n");
     }
     // Client closed socket so clean up
     close(sock);
@@ -96,7 +102,7 @@ void *mb_tcp_slave_thread(void *ptr)
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_desc == -1)
     {
-        perror("Could not create socket");
+        perror("[MB_SLAVE_ERROR]: Could not create socket\n");
         return 0;
     }
     // Prepare the sockaddr_in structure
@@ -107,31 +113,39 @@ void *mb_tcp_slave_thread(void *ptr)
     if (bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
         // print the error message
-        perror("bind failed. Error");
+        perror("[MB_SLAVE_ERROR]: bind failed\n");
         return 0;
     }
     // Listen
     int ret = listen(socket_desc, 1);
-    // Accept and incoming connection
-    printf("Waiting for incoming connections on port %d...\n", data_tcp_inst->Port);
+// Accept and incoming connection
+#ifdef USER_DEBUG
+    printf("[MB_SLAVE]: Waiting for incoming connections on port %d...\n", data_tcp_inst->Port);
+#endif
     cli_len = sizeof(struct sockaddr_in);
     while ((client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t *)&cli_len)))
     {
         inet_ntop(AF_INET, &client.sin_addr, buf, sizeof(buf));
-        printf("Connection accepted, addr: %s\n", buf);
+#ifdef USER_DEBUG
+        printf("[MB_SLAVE]: Connection accepted, addr: %s\n", buf);
+#endif
         data_tcp_inst->Client_Sock_Inst = client_sock;
         if (pthread_create(&thread_id, NULL, connection_tcp_thread_handler, (void *)data_tcp_inst) < 0)
         {
-            perror("could not create thread");
+            perror("[MB_SLAVE_ERROR]:could not create thread");
             return 0;
         }
-        // Now join the thread , so that we dont terminate before the thread
-        // pthread_join( thread_id , NULL);
-        printf("Handler assigned\n");
+// Now join the thread , so that we dont terminate before the thread
+// pthread_join( thread_id , NULL);
+#ifdef USER_DEBUG
+        printf("[MB_SLAVE]: Handler assigned\n");
+#endif
     }
     if (client_sock < 0)
     {
-        perror("accept failed");
+        perror("[MB_SLAVE_ERROR]:accept failed");
+        close(client_sock);
+        close(socket_desc);
         return 0;
     }
 }
@@ -152,11 +166,15 @@ int32_t mh_Slave_Init(Config *cfg)
         snprintf(strFullSection + len, sizeof(strFullSection) - len, "%d", i);
         if (ConfigHasSection(cfg, strFullSection))
         {
-            printf("%s find section %s\n", __FUNCTION__, strFullSection);
+#ifdef USER_DEBUG
+            printf("[MB_SLAVE_CONFIG]:%s find section %s\n", __FUNCTION__, strFullSection);
+#endif
             MB_tcp_thread_data = calloc(1, sizeof(mb_tcp_thread_data_t));
             if (MB_tcp_thread_data == NULL)
             {
-                printf("Memory error in func: %s \n", __FUNCTION__);
+#ifdef USER_DEBUG
+                printf("[MB_SLAVE_CONFIG]:Memory error in func: %s\n", __FUNCTION__);
+#endif
                 return 0;
             }
             MB_tcp_thread_data->MB_Data_Inst.p_read = MBbuf_main;
@@ -184,7 +202,7 @@ int32_t mh_Slave_Init(Config *cfg)
 
             if (pthread_create(&MBslave_thread_id, NULL, mb_tcp_slave_thread, (void *)MB_tcp_thread_data) < 0)
             {
-                perror("MBSlave_Thread not creatr");
+                perror("[MB_SLAVE_ERROR]:MBSlave_Thread not create\n");
                 return 0;
             }
         }
@@ -196,190 +214,49 @@ void mh_TCP_Transmit_Start(void *mbb)
     ssize_t ret;
     MBStruct_t *st_mb;
     st_mb = (void *)mbb;
-    printf("Callback: %s \n", __FUNCTION__);
     ret = write(*(int *)st_mb->user_data, st_mb->p_mb_buff, st_mb->response_size);
     st_mb->mb_state = MB_STATE_IDLE;
 }
 
 void mh_Callback_TCP(void *mbb)
 {
-    printf("Callback: %s \n", __FUNCTION__);
+    MBStruct_t *st_mb;
+    st_mb = (void *)mbb;
+#ifdef USER_DEBUG
+    printf("[MB_SLAVE_USER_CB]: Callback: %s \n", __FUNCTION__);
+#endif
+    void (*ccb)(uint16_t reg_id, uint16_t data);
+    for (int32_t i = 0; i < (st_mb->cb_index); i++)
+    {
+        if ((mb_reg_option_check(i + (st_mb->cb_reg_start), USER_FUNC) == MB_OK))
+        {
+
+            ccb = mb_getRegUserArg1(i + (st_mb->cb_reg_start));  
+            ccb(i + (st_mb->cb_reg_start), st_mb->p_write[i + (st_mb->cb_reg_start)]);
+
+
+#ifdef USER_DEBUG
+            printf("[write_rs]: Callback: %s ________________________________\n", __FUNCTION__);
+#endif
+        }
+    }
 }
 
-// // Callback for usb com
-// void mh_Recieve(uint8_t *USB_buf, uint16_t len)	//interrupt	function
-// {
-//     if (mb_instance_idle_check((MBStruct_t*)&MB_USB)==MB_OK)
-//     {
-//         if(len>MB_FRAME_MAX)
-//         {
-//             len=MB_FRAME_MAX;
-//         }
-//         MB_USB.mb_state=MB_STATE_PARS;
-//         MB_USB.mb_index=(len);
-//         memcpy (MB_USB.p_mb_buff,USB_buf,len);
-//         MBStruct_t *st_mb=(MBStruct_t*)&MB_USB;
-//         xQueueSend(xModbusQueue, &st_mb, 0);
-//     }
-// }
+uint16_t mh_get_reset_data_mb_buf(uint16_t number)
+{
+    uint16_t data;
+    pthread_mutex_lock(&mutexMBbuf_main);
+    data = MBbuf_main[number];
+    MBbuf_main[number] = 0;
+    pthread_mutex_unlock(&mutexMBbuf_main);
+    return data;
+}
 
-// // Init modbus
-// void mh_Modbus_Init(void)
-// {
-//     //create queue
-//     xModbusQueue=xQueueCreate(3,sizeof(MBStruct_t *));
-
-//     //create modbus task
-//     if(pdTRUE != xTaskCreate(mh_task_Modbus, "RS485", MODBUS_TASK_STACK_SIZE, NULL, MODBUS_TASK_PRIORITY, &m_modbus_task_handle)) ERROR_ACTION(TASK_NOT_CREATE, 0);
-
-//     mh_USB_Init();
-//     mh_RS485_Init();
-// }
-
-// void mh_USB_Init(void)
-// {
-//     MB_USB.p_write = MBbuf_main;
-//     MB_USB.p_read = MBbuf_main;
-//     MB_USB.reg_read_last=MB_NUM_BUF-1;
-//     MB_USB.reg_write_last=MB_NUM_BUF-1;
-//     MB_USB.cb_state=MB_CB_FREE;
-//     MB_USB.er_frame_bad=EV_NOEVENT;
-//     MB_USB.slave_address=MB_ANY_ADDRESS;	//0==any address
-//     MB_USB.mb_state=MB_STATE_IDLE;
-//     MB_USB.p_mb_buff=&USB_MB_Buf[0];
-//     MB_USB.wr_callback = mh_Write_Eeprom;
-//     MB_USB.f_start_trans = mh_USB_Transmit_Start;
-//     MB_USB.f_start_receive = NULL;
-// }
-
-// void mh_RS485_Init(void)
-// {
-//     uint32_t Rs485_Time_ms;
-
-//     MB_RS485.p_write = MBbuf_main;
-//     MB_RS485.p_read = MBbuf_main;
-//     MB_RS485.reg_read_last=MB_NUM_BUF-1;
-//     MB_RS485.reg_write_last=MB_NUM_BUF-1;
-//     MB_RS485.cb_state=MB_CB_FREE;
-//     MB_RS485.er_frame_bad=EV_NOEVENT;
-//     MB_RS485.slave_address=MBbuf_main[Reg_RS485_Modbus_Addr];
-//     MB_RS485.mb_state=MB_STATE_IDLE;
-//     MB_RS485.p_mb_buff=&RS485_MB_Buf[0];
-//     MB_RS485.wr_callback = mh_Write_Eeprom;
-//     MB_RS485.f_start_trans=mh_Rs485_Transmit_Start;
-//     MB_RS485.f_start_receive = NULL;
-
-//     Rs485_Time_ms = (MBbuf_main[Reg_RS485_Ans_Delay]);
-//     rs485_timer_handle = xTimerCreate( "T_RS485", Rs485_Time_ms/portTICK_RATE_MS, pdFALSE, NULL, rs485_timer_callback);
-//     IO_Uart1_Init();
-// }
-
-// void rs485_timer_callback (xTimerHandle xTimer)
-// {
-//     if( MB_STATE_RCVE == MB_RS485.mb_state)
-//     {
-//         // If we are receiving, it's the end event: t3.5
-//         MB_RS485.mb_state=MB_STATE_PARS;					// Begin parsing of a frame.
-//         MBStruct_t *st_mb=(MBStruct_t*)&MB_RS485;
-//         xQueueSend(xModbusQueue, &st_mb, 0);
-//     }
-// }
-
-// void IO_Uart1_Init(void)
-// {
-//     RCC->APB2ENR	|= RCC_APB2ENR_USART1EN;						//USART1 Clock ON
-//     USART1->BRR = Baud_rate[MBbuf_main[Reg_RS485_Baud_Rate]&0x3];	// Bodrate
-//     USART1->CR1 |= USART_CR1_TE | USART_CR1_RE | USART_CR1_IDLEIE | USART_CR1_TCIE | USART_CR1_RXNEIE;
-
-//     switch (MBbuf_main[Reg_Parity_Stop_Bits])
-//     {
-//     case NO_PARITY_1_STOP:
-//         break; //default setting
-
-//     case NO_PARITY_2_STOP:
-//         USART1->CR2  |=  USART_CR2_STOP_1;
-//         break;
-
-//     case EVEN_PARITY_1_STOP:
-//         USART1->CR1  |= USART_CR1_PCE | USART_CR1_M;
-//         break;
-
-//     case ODD_PARITY_1_STOP:
-//         USART1->CR1  |= USART_CR1_PCE | USART_CR1_M | USART_CR1_PS;
-//         break;
-
-//     default:
-//         break;
-//     }
-
-//     USART1->CR1 |= USART_CR1_UE;
-
-//     NVIC_SetPriority(USART1_IRQn,14);
-//     NVIC_EnableIRQ (USART1_IRQn);
-// }
-
-// void mh_Write_Eeprom (void *mbb)
-// {
-//     MBStruct_t *st_mb;
-//     st_mb = (void*) mbb;
-//     uint16_t len =  sizeof(MBRegParam[0].Default_Value);
-
-//     for (int32_t i = 0; i < (st_mb->cb_index); i++)
-//     {
-//         if((mb_reg_option_check(i+(st_mb->cb_reg_start), CB_WR) == MB_OK))
-//         {
-//             AT25_mutex_update_byte( ((st_mb->cb_reg_start)+i)*len, (uint8_t*) &(st_mb->p_write[i+(st_mb->cb_reg_start)]), len);
-//         }
-//     }
-// }
-
-// void mh_USB_Transmit_Start (void *mbb)
-// {
-//     MBStruct_t *st_mb;
-//     st_mb = (void*) mbb;
-//     CDC_Transmit_FS (st_mb->p_mb_buff, st_mb->response_size);
-//     MB_USB.mb_state=MB_STATE_IDLE;
-// }
-
-// void mh_Rs485_Transmit_Start (void *mbb)
-// {
-//     mh_EnableTransmission(true);
-//     USART1->CR1 |= USART_CR1_TXEIE;
-// }
-
-// void mh_Factory (void)
-// {
-//     taskENTER_CRITICAL();
-//     uint16_t len =  sizeof(MBRegParam[0].Default_Value);
-//     for (int32_t i=0; i< MB_NUM_BUF; i++)
-//     {
-//         if (mb_reg_option_check(i, CB_WR)==MB_OK)
-//         {
-//             MBbuf_main[i] = MBRegParam[i].Default_Value;
-//             AT25_update_byte((i*len), (uint8_t *) &MBbuf_main[i],  len);
-//         }
-//     }
-//     taskEXIT_CRITICAL();
-//     MBbuf_main[Reg_Set_Default_Reset]=0;
-// }
-
-// void mh_Buf_Init (void)
-// {
-//     taskENTER_CRITICAL();
-//     AT25_Init();
-//     uint16_t len =  sizeof(MBRegParam[0].Default_Value);
-//     for (int32_t i=0; i< MB_NUM_BUF; i++)
-//     {
-//         if(mb_reg_option_check(i, CB_WR)==MB_OK)
-//         {
-//             AT25_read_byte((i*len), (uint8_t *) &MBbuf_main[i],  len);
-//             if(mb_reg_limit_check(i, MBbuf_main[i])==MB_ERROR)
-//             {
-//                 MBbuf_main[i]=MBRegParam[i].Default_Value;
-//                 AT25_update_byte((i)*len, (uint8_t *) &MBbuf_main[i],  len);
-//             }
-//         }
-//     }
-//     MBbuf_main[Reg_Set_Default_Reset]=0;
-//     taskEXIT_CRITICAL();
-// }
+uint16_t mh_get_data_mb_buf(uint16_t number)
+{
+    uint16_t data;
+    pthread_mutex_lock(&mutexMBbuf_main);
+    data = MBbuf_main[number];
+    pthread_mutex_unlock(&mutexMBbuf_main);
+    return data;
+}

@@ -115,7 +115,7 @@ mst_ret_t mst_fill_buff(mst_t *mst)
         {
             // tcp frame
             // tcp id
-            mst->frame_buf[0] = mst->trans_id++;
+            mst->frame_buf[0] = mst->trans_id;
             mst->frame_buf[1] = 0;
             // protocol id (0)
             mst->frame_buf[2] = 0;
@@ -152,7 +152,7 @@ mst_ret_t mst_fill_buff(mst_t *mst)
         case MST_FUNC_WRITE_SINGLE_COIL:
         case MST_FUNC_WRITE_REGISTER:
             // reg count
-            buf_ptr[4] = mst->current_req_inst.data_16 << 8;
+            buf_ptr[4] = mst->current_req_inst.data_16 >> 8;
             buf_ptr[5] = mst->current_req_inst.data_16 & 0xFF;
             len = 6;
             break;
@@ -180,6 +180,10 @@ mst_ret_t mst_fill_buff(mst_t *mst)
             crc = mst_crc16(buf_ptr, len);
             buf_ptr[len++] = crc & 0xFF;
             buf_ptr[len++] = crc >> 8;
+        }
+        else
+        {
+            len += 6;
         }
         mst->len = len;
     }
@@ -212,7 +216,7 @@ mst_ret_t mst_parse_buff(mst_t *mst)
         if (mst->current_req_inst.req_flags & F_TYPE_TCP)
         {
             // check tcp id
-            if (mst->frame_buf[0] != (mst->trans_id - 1))
+            if (mst->frame_buf[0] != (mst->trans_id))
                 return RET_ERROR;
             // check len from head
             len -= 6;

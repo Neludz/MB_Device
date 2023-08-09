@@ -31,7 +31,9 @@
             "mst_modbus_config.h": "c",
             "mst_modbus.h": "c",
             "stdarg.h": "c",
-            "mst_modbus_cb.h": "c"
+            "mst_modbus_cb.h": "c",
+            "msg.h": "c",
+            "mqueue.h": "c"
         },
         "makefile.makePath": "make",
         "makefile.launchConfigurations": [
