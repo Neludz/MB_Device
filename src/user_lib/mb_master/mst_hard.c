@@ -36,6 +36,9 @@ int socket_desc;
 int sfd;
 MST_INSTANCE_DEF(mst_2, master_rs485_cb, MST_RS_485_1_BUF_TABLE);
 
+// rs485 example
+int sfd_2;
+MST_INSTANCE_DEF(mst_3, master_rs485_2_cb, MST_RS_485_2_BUF_TABLE);
 // queue msg
 // msg_mst_t msg_queue;
 int msg_queue_ID;
@@ -51,7 +54,7 @@ void *mst_tcp_thread(void *ptr)
     while (1)
     {
         mst_modbus_iteration((mst_t *)ptr);
-        usleep(1);
+        usleep(100);
         if (msgrcv(msg_queue_ID, &message, sizeof(message.data),
                    (long)p_mst->user_data, IPC_NOWAIT) > 0)
         {
@@ -76,6 +79,7 @@ void mst_master_init()
     mst_1.socket_data = (void *)&socket_desc;
     mst_1.user_data = &mst_1;
     mst_2.user_data = &mst_2;
+    mst_3.user_data = &mst_3;
     // create queue for recieve event
     if ((msg_queue_ID = msgget(IPC_PRIVATE, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH))) < 0)
     {
@@ -96,6 +100,10 @@ void mst_master_init()
         perror("MB_MASTER_Thread not create\n");
     }
     if (pthread_create(&mst_thread_id, NULL, mst_tcp_thread, (void *)&mst_2) < 0)
+    {
+        perror("MB_MASTER_Thread not create\n");
+    }
+    if (pthread_create(&mst_thread_id, NULL, mst_tcp_thread, (void *)&mst_3) < 0)
     {
         perror("MB_MASTER_Thread not create\n");
     }
@@ -246,8 +254,8 @@ mst_ret_t master_rs485_cb(mst_t *mst_data)
 #ifdef USER_DEBUG
         printf("[MB_MASTER_UART]: MST_INIT\n");
 #endif
-        // // ttyS0
-        sfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
+        // // ttyS0 //ttyAMA0  ttyAMA0
+        sfd = open("/dev/ttyAMA0", O_RDWR | O_NOCTTY);
 
         if (sfd == -1)
         {
@@ -281,7 +289,7 @@ mst_ret_t master_rs485_cb(mst_t *mst_data)
         //*********************************************************
     case MST_SEND_REQ:
         // send request
-        usleep(50000);
+        usleep(5000);
         write(sfd, mst_data->tx_buf, mst_data->len);
         mst_data->len = get_block(mst_data->rx_buf, 250, MST_FRAME_MAX, sfd);
 #ifdef USER_DEBUG
@@ -294,7 +302,69 @@ mst_ret_t master_rs485_cb(mst_t *mst_data)
     }
     return ret;
 }
+// //-----------------------------------------------------------------------
+// // main callback for finite-state machine
+// //-----------------------------------------------------------------------
+mst_ret_t master_rs485_2_cb(mst_t *mst_data)
+{
+    mst_ret_t ret = RET_OK;
+    int read_size, count;
+    switch (mst_check_state(mst_data))
+    {
+        //*********************************************************
+    case MST_INIT:
+// init code
+#ifdef USER_DEBUG
+        printf("[MB_MASTER_UART]: MST_INIT\n");
+#endif
+        // // ttyS0
+        sfd_2 = open("/dev/ttyAMA1", O_RDWR | O_NOCTTY);
 
+        if (sfd_2 == -1)
+        {
+#ifdef USER_DEBUG
+            printf("[MB_MASTER_UART_ERROR]: Error no is : %d\n", errno);
+#endif
+            return (-1);
+        };
+
+        struct termios options;
+        tcgetattr(sfd_2, &options);
+        cfsetspeed(&options, 19200);
+        options.c_cflag &= ~CSTOPB;
+        options.c_cflag |= CLOCAL;
+        options.c_cflag |= CREAD;
+        options.c_cc[VTIME] = 0;
+        options.c_cc[VMIN] = 0;
+        cfmakeraw(&options);
+        tcsetattr(sfd_2, TCSANOW, &options);
+
+        break;
+        //*********************************************************
+    case MST_PREPARE_CONNECT:
+
+        // connect to device/create socket
+        break;
+        //*********************************************************
+    case MST_DISCONNECT:
+        // disconnect/delete socket
+        break;
+        //*********************************************************
+    case MST_SEND_REQ:
+        // send request
+        usleep(5000);
+        write(sfd_2, mst_data->tx_buf, mst_data->len);
+        mst_data->len = get_block(mst_data->rx_buf, 250, MST_FRAME_MAX, sfd);
+#ifdef USER_DEBUG
+        printf("[MB_MASTER_UART]: MST_RX/TX\n");
+#endif
+        break;
+        //*********************************************************
+    default:
+        break;
+    }
+    return ret;
+}
 // //-----------------------------------------------------------------------
 // // write function
 // //----------------------------------------------------------------------
@@ -303,6 +373,19 @@ void write_rs(uint16_t reg_id, uint16_t data)
     msg_mst_t message;
     message.mtype = (long)&mst_2;
     message.data = RS_5;
+    if (msgsnd(msg_queue_ID, &message,
+               sizeof(message.data), IPC_NOWAIT) < 0) // IPC_NOWAIT
+    {
+        printf("=============================================================================\n\n\n");
+    }
+    // mst_set_event(&mst_2, RS_5, EVENT_REQUEST);
+}
+
+void write_rs_2(uint16_t reg_id, uint16_t data)
+{
+    msg_mst_t message;
+    message.mtype = (long)&mst_3;
+    message.data = RS_2_5;
     if (msgsnd(msg_queue_ID, &message,
                sizeof(message.data), IPC_NOWAIT) < 0) // IPC_NOWAIT
     {

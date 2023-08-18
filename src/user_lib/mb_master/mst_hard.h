@@ -16,7 +16,10 @@ typedef struct msg_mst {
  void mst_master_init();
  mst_ret_t master_main_cb(mst_t *mst_data);
  mst_ret_t master_rs485_cb(mst_t *mst_data);
-
+ mst_ret_t master_rs485_2_cb(mst_t *mst_data);
 
 void write_rs(uint16_t reg_id, uint16_t data);
+void write_rs_2(uint16_t reg_id, uint16_t data);
+
+
 #endif /* MASTER_HARD_H_INCLUDED */

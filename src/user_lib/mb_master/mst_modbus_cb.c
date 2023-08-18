@@ -118,21 +118,21 @@ mst_ret_t(mst_rs_user_write_cb)(mst_t *mst_data)
            // mst_data->current_req_inst.data_16 = mh_get_reset_data_mb_buf(mst_data->request_number + 5);
             mst_data->current_req_inst.req_flags = F_TYPE_RTU;
 #ifdef USER_DEBUG
-            printf("[LOG_WRITE] user CB [%d] create_________________________________\n", mst_data->device_number);
+            printf("[LOG_WRITE] user CB [%d] create\n", mst_data->device_number);
 #endif
             return RET_OK;
        // }
         //return RET_NEXT_REQUEST;
     case MST_DONE:
 #ifdef USER_DEBUG
-        printf("[LOG_WRITE] write CB_________________________________\n");
+        printf("[LOG_WRITE] write CB\n");
 #endif
         if (mst_data->request_number > 2)
             return RET_NEXT_DEVICE;
         return RET_NEXT_REQUEST;
     case MST_ERROR:
 #ifdef USER_DEBUG
-        printf("[LOG_WRITE] user CB [%d] error_________________________________\n", mst_data->device_number);
+        printf("[LOG_WRITE] user CB [%d] error\n", mst_data->device_number);
 #endif
         return RET_NEXT_DEVICE;
     default:

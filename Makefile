@@ -1,5 +1,6 @@
 #compiler and linker flags ARM copmiler =  aarch64-linux-gnu-gcc
-CC			:= gcc
+CC_X86		:= gcc
+CC_ARM		:= aarch64-linux-gnu-gcc
 SRC_DIRS	:= src	src/user_lib src/user_lib/mb_slave src/user_lib/mb_master
 INC_DIRS	:= 
 LIB_DIRS	:=
@@ -12,6 +13,9 @@ MAKEFLAGS	:=
 DEBUG_DEF 	:= -DUSER_DEBUG
 PROJECT_DEF :=
 
+# copmiler
+compiler = x86
+CC :=
 
 # Decide whether the commands will be shwon or not
 VERBOSE = TRUE
@@ -29,9 +33,17 @@ OUTPUT		:= $(BIN_DIR)/$(if $(findstring Windows_NT, $(OS)),$(BIN_EXE).exe,$(BIN_
 
 VPATH = $(SRC_DIRS)
 
+# copmiler
+compiler = x86
+ifeq ($(compiler),x86)
+	CC := $(CC_X86) 
+else
+	CC := $(CC_ARM) 
+endif
+	
+
 # mode
 mode = debug
-
 ifeq ($(mode),debug)
 	PROJECT_DEF += $(DEBUG_DEF)
 endif

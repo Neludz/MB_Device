@@ -34,12 +34,18 @@
 
 typedef struct
 {
-  uint32_t Client_Sock_Inst;
+ // uint32_t Client_Sock_Inst;
   uint8_t Buf_Data[MB_FRAME_MAX];
   int32_t Port;
   MBStruct_t MB_Data_Inst;
   pthread_mutex_t socket_mutex;  
 } mb_tcp_thread_data_t;
+
+typedef struct
+{
+    int sock;
+    mb_tcp_thread_data_t *conn_data;
+} connection_t;
 
 typedef enum
 {

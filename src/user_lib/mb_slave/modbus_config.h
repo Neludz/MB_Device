@@ -47,9 +47,9 @@
 	X_BUF(7,	Reg_T_6_Channel,	    write_rs,0,		0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
 	X_BUF(8,	Reg_T_7_Channel,	    0,		0,		0, 		0,		READ_R)\
 	X_BUF(9,	Reg_T_8_Channel,	    0,		0,		0, 		0,		READ_R)\
-	X_BUF(10,	Reg_Cur_RMS_W1,		    0,		0,		0, 		0,		READ_R)\
-	X_BUF(11,	Reg_Cur_RMS_W2,		    0,		0,		0, 		0,		READ_R)\
-	X_BUF(12,	Reg_T_MSD,			    0,		0,		0, 		0,		READ_R)\
+	X_BUF(10,	Reg_Cur_RMS_W1,		    write_rs_2,0,	0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
+	X_BUF(11,	Reg_Cur_RMS_W2,		    write_rs_2,0,	0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
+	X_BUF(12,	Reg_T_MSD,			    write_rs_2,0,	0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
 	X_BUF(13,	Reg_T_Max,			    0,		0,		0, 		0,		READ_R)\
 	X_BUF(14,	Reserved_3,			    0,      100,	0, 		0xFFFF,	READ_R)\
 	X_BUF(15,	Reserved_4,			    0,		123,	0, 		0xFFFF,	READ_R)\

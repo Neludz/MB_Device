@@ -46,25 +46,25 @@ uint16_t MBbuf_main[MB_NUM_BUF];
  * */
 void *connection_tcp_thread_handler(void *ptr)
 {
+    connection_t * connection;
     // Get the socket descriptor
-    mb_tcp_thread_data_t *data_tcp_inst;
-    data_tcp_inst = (mb_tcp_thread_data_t *)ptr;
-    int sock = data_tcp_inst->Client_Sock_Inst;
+    //mb_tcp_thread_data_t *data_tcp_inst;
+    connection = (connection_t *)ptr;
+    int sock = connection->sock;
     int read_size;
     char *message, client_message[2000];
-
     // Receive a message from client
     while ((read_size = recv(sock, client_message, 2000, 0)) > 0)
     {
         pthread_mutex_lock(&mutexMBSlave_main);
         // pthread_mutex_lock(&data_tcp_inst->socket_mutex);
-        if ((read_size < MB_FRAME_MAX) && (mb_instance_idle_check(&data_tcp_inst->MB_Data_Inst)))
+        if ((read_size < MB_FRAME_MAX) && (mb_instance_idle_check(&connection->conn_data->MB_Data_Inst)))
         {
-            memcpy(data_tcp_inst->Buf_Data, client_message, read_size);
-            data_tcp_inst->MB_Data_Inst.mb_index = (uint8_t)read_size;
-            data_tcp_inst->MB_Data_Inst.user_data = &sock;
+            memcpy(connection->conn_data->Buf_Data, client_message, read_size);
+            connection->conn_data->MB_Data_Inst.mb_index = (uint8_t)read_size;
+            connection->conn_data->MB_Data_Inst.user_data = &sock;
             pthread_mutex_lock(&mutexMBbuf_main);
-            mb_parsing(&data_tcp_inst->MB_Data_Inst);
+            mb_parsing(&connection->conn_data->MB_Data_Inst);
             pthread_mutex_unlock(&mutexMBbuf_main);
         }
         pthread_mutex_unlock(&mutexMBSlave_main);
@@ -86,18 +86,23 @@ void *connection_tcp_thread_handler(void *ptr)
     }
     // Client closed socket so clean up
     close(sock);
-    return 0;
+    free(ptr);
+    pthread_exit(0);
+   //exit(NULL);
+   // return 0;
 }
 
 void *mb_tcp_slave_thread(void *ptr)
 {
     // int sock = *(int*)socket_desc;
+    connection_t *connection;
     char buf[20];
     mb_tcp_thread_data_t *data_tcp_inst;
     data_tcp_inst = (mb_tcp_thread_data_t *)ptr;
     int socket_desc, client_sock, cli_len;
     struct sockaddr_in server, client;
     pthread_t thread_id;
+    struct timeval tv;
     // Create socket
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_desc == -1)
@@ -109,6 +114,16 @@ void *mb_tcp_slave_thread(void *ptr)
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = htons(INADDR_ANY);
     server.sin_port = htons(data_tcp_inst->Port);
+
+        tv.tv_sec = 5;
+        tv.tv_usec = 500000;
+        setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
+        tv.tv_sec = 5;
+        tv.tv_usec = 500000;
+        setsockopt(socket_desc, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
+
+
+
     // Bind
     if (bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
@@ -117,26 +132,34 @@ void *mb_tcp_slave_thread(void *ptr)
         return 0;
     }
     // Listen
-    int ret = listen(socket_desc, 1);
+    int ret = listen(socket_desc, 2);
 // Accept and incoming connection
 #ifdef USER_DEBUG
     printf("[MB_SLAVE]: Waiting for incoming connections on port %d...\n", data_tcp_inst->Port);
 #endif
     cli_len = sizeof(struct sockaddr_in);
-    while ((client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t *)&cli_len)))
-    {
+
+    
+    while (1)
+       { 
+        client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t *)&cli_len);
+    
         inet_ntop(AF_INET, &client.sin_addr, buf, sizeof(buf));
 #ifdef USER_DEBUG
         printf("[MB_SLAVE]: Connection accepted, addr: %s\n", buf);
 #endif
-        data_tcp_inst->Client_Sock_Inst = client_sock;
-        if (pthread_create(&thread_id, NULL, connection_tcp_thread_handler, (void *)data_tcp_inst) < 0)
+       // data_tcp_inst->Client_Sock_Inst = client_sock;
+        connection = (connection_t *)malloc(sizeof(connection_t));
+        connection->conn_data = data_tcp_inst;
+        connection->sock = client_sock;
+        if (pthread_create(&thread_id, NULL, connection_tcp_thread_handler, (void *)connection) < 0)
         {
             perror("[MB_SLAVE_ERROR]:could not create thread");
             return 0;
         }
+        pthread_detach(thread_id);
 // Now join the thread , so that we dont terminate before the thread
-// pthread_join( thread_id , NULL);
+ //pthread_join( thread_id , NULL);
 #ifdef USER_DEBUG
         printf("[MB_SLAVE]: Handler assigned\n");
 #endif
@@ -144,7 +167,7 @@ void *mb_tcp_slave_thread(void *ptr)
     if (client_sock < 0)
     {
         perror("[MB_SLAVE_ERROR]:accept failed");
-        close(client_sock);
+        //close(client_sock);
         close(socket_desc);
         return 0;
     }
