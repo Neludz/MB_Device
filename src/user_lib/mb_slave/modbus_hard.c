@@ -24,15 +24,17 @@
 #include <stdint.h>
 #include <ctype.h>
 #include "user_lib/configini.h"
+
+
 //-----------------------------------------------------------------------
 // Variable
 //-----------------------------------------------------------------------
 
 pthread_mutex_t mutexMBbuf_main = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexMBSlave_main = PTHREAD_MUTEX_INITIALIZER;
-extern pthread_mutex_t mutex_rs_write ;
+extern pthread_mutex_t mutex_rs_write;
 uint16_t MBbuf_main[MB_NUM_BUF];
-//extern const RegParameters_t MBRegParam[];
+// extern const RegParameters_t MBRegParam[];
 
 // //-----------------------------------------------------------------------
 // // Task function
@@ -46,9 +48,9 @@ uint16_t MBbuf_main[MB_NUM_BUF];
  * */
 void *connection_tcp_thread_handler(void *ptr)
 {
-    connection_t * connection;
+    connection_t *connection;
     // Get the socket descriptor
-    //mb_tcp_thread_data_t *data_tcp_inst;
+    // mb_tcp_thread_data_t *data_tcp_inst;
     connection = (connection_t *)ptr;
     int sock = connection->sock;
     int read_size;
@@ -82,14 +84,14 @@ void *connection_tcp_thread_handler(void *ptr)
     }
     else if (read_size == -1)
     {
-        perror("[MB_SLAVE_ERROR]: recv failed\n");
+        perror("[MB_SLAVE_ERROR]: recv failed");
     }
     // Client closed socket so clean up
     close(sock);
     free(ptr);
     pthread_exit(0);
-   //exit(NULL);
-   // return 0;
+    // exit(NULL);
+    //  return 0;
 }
 
 void *mb_tcp_slave_thread(void *ptr)
@@ -107,7 +109,7 @@ void *mb_tcp_slave_thread(void *ptr)
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_desc == -1)
     {
-        perror("[MB_SLAVE_ERROR]: Could not create socket\n");
+        perror("[MB_SLAVE_ERROR]: Could not create socket");
         return 0;
     }
     // Prepare the sockaddr_in structure
@@ -115,14 +117,12 @@ void *mb_tcp_slave_thread(void *ptr)
     server.sin_addr.s_addr = htons(INADDR_ANY);
     server.sin_port = htons(data_tcp_inst->Port);
 
-        tv.tv_sec = 5;
-        tv.tv_usec = 500000;
-        setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
-        tv.tv_sec = 5;
-        tv.tv_usec = 500000;
-        setsockopt(socket_desc, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
-
-
+    tv.tv_sec = 5;
+    tv.tv_usec = 500000;
+    setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
+    tv.tv_sec = 5;
+    tv.tv_usec = 500000;
+    setsockopt(socket_desc, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
 
     // Bind
     if (bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
@@ -139,16 +139,23 @@ void *mb_tcp_slave_thread(void *ptr)
 #endif
     cli_len = sizeof(struct sockaddr_in);
 
-    
     while (1)
-       { 
+    {
         client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t *)&cli_len);
-    
+
         inet_ntop(AF_INET, &client.sin_addr, buf, sizeof(buf));
 #ifdef USER_DEBUG
         printf("[MB_SLAVE]: Connection accepted, addr: %s\n", buf);
 #endif
-       // data_tcp_inst->Client_Sock_Inst = client_sock;
+
+    if (client.sin_addr.s_addr == 0)
+    {
+        printf("[MB_SLAVE]: TIME OUT CONNECT______________________\n");
+        close(client_sock);
+    }
+    else
+    {
+        // data_tcp_inst->Client_Sock_Inst = client_sock;
         connection = (connection_t *)malloc(sizeof(connection_t));
         connection->conn_data = data_tcp_inst;
         connection->sock = client_sock;
@@ -159,15 +166,16 @@ void *mb_tcp_slave_thread(void *ptr)
         }
         pthread_detach(thread_id);
 // Now join the thread , so that we dont terminate before the thread
- //pthread_join( thread_id , NULL);
+// pthread_join( thread_id , NULL);
 #ifdef USER_DEBUG
         printf("[MB_SLAVE]: Handler assigned\n");
 #endif
     }
+}
     if (client_sock < 0)
     {
         perror("[MB_SLAVE_ERROR]:accept failed");
-        //close(client_sock);
+        close(client_sock);
         close(socket_desc);
         return 0;
     }
@@ -254,9 +262,8 @@ void mh_Callback_TCP(void *mbb)
         if ((mb_reg_option_check(i + (st_mb->cb_reg_start), USER_FUNC) == MB_OK))
         {
 
-            ccb = mb_getRegUserArg1(i + (st_mb->cb_reg_start));  
+            ccb = mb_getRegUserArg1(i + (st_mb->cb_reg_start));
             ccb(i + (st_mb->cb_reg_start), st_mb->p_write[i + (st_mb->cb_reg_start)]);
-
 
 #ifdef USER_DEBUG
             printf("[write_rs]: Callback: %s ________________________________\n", __FUNCTION__);

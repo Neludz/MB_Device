@@ -19,7 +19,7 @@
 #include "user_lib/configini.h"
 #include "modbus_hard.h"
 #include "mst_hard.h"
-//#include "mst_disp.h"
+// #include "mst_disp.h"
 
 #define LOG_ERR(fmt, ...) \
     fprintf(stderr, "[ERROR] <%s:%d> : " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
@@ -32,15 +32,9 @@
 
 
 
-uint8_t test3[100];
-uint8_t test2[sizeof(test3) / sizeof(uint8_t)];
-
-
 int main(void)
 {
 
-
-    
     Config *cfg = NULL;
     if (ConfigReadFile(CONFIG_READ_FILE, &cfg) != CONFIG_OK)
     {
@@ -50,10 +44,10 @@ int main(void)
     mh_Slave_Init(cfg);
     ConfigFree(cfg);
     mst_master_init();
-  
+
     while (1)
     {
-      pause();
-      // usleep(1000);
+        pause();
+        
     }
 }

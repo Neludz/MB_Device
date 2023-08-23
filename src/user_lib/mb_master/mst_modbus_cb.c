@@ -41,16 +41,16 @@ mst_ret_t(mst_user_cb)(mst_t *mst_data)
         mst_data->current_req_inst.len = 10;
         mst_data->current_req_inst.req_flags = F_TYPE_TCP;
 #ifdef USER_DEBUG
-        printf("[LOG_ETH] user CB [%d] create\n", mst_data->device_number);
+     //   printf("[LOG_ETH] user CB [%d] create\n", mst_data->device_number);
 #endif
         return RET_OK;
     case MST_DONE:
 #ifdef USER_DEBUG
-        printf("[LOG_ETH] user CB [%d] done :%d, %d, %d\n",
-               mst_data->device_number,
-               mst_data->frame_buf[0],
-               mst_data->frame_buf[1],
-               mst_data->frame_buf[2]);
+        // printf("[LOG_ETH] user CB [%d] done :%d, %d, %d\n",
+        //       mst_data->device_number,
+        //        mst_data->frame_buf[0],
+        //        mst_data->frame_buf[1],
+        //        mst_data->frame_buf[2]);
 #endif
         if (mst_data->request_number >= 2)
             return RET_NEXT_DEVICE;
@@ -58,7 +58,7 @@ mst_ret_t(mst_user_cb)(mst_t *mst_data)
         return RET_NEXT_REQUEST;
     case MST_ERROR:
 #ifdef USER_DEBUG
-        printf("[LOG_ETH] user CB [%d] error\n", mst_data->device_number);
+    //   printf("[LOG_ETH] user CB [%d] error\n", mst_data->device_number);
 #endif
         return RET_NEXT_DEVICE;
     default:
@@ -77,21 +77,21 @@ mst_ret_t(mst_rs_user_cb)(mst_t *mst_data)
         mst_data->current_req_inst.len = 2;
         mst_data->current_req_inst.req_flags = F_TYPE_RTU;
 #ifdef USER_DEBUG
-        printf("[LOG_RS] user CB [%d] create\n", mst_data->device_number);
+    //    printf("[LOG_RS] user CB [%d] create\n", mst_data->device_number);
 #endif
         return RET_OK;
     case MST_DONE:
 #ifdef USER_DEBUG
-        printf("[LOG_RS] user CB [%d] done :%d, %d, %d\n",
-               mst_data->device_number,
-               mst_data->frame_buf[0],
-               mst_data->frame_buf[1],
-               mst_data->frame_buf[2]);
+    //    printf("[LOG_RS] user CB [%d] done :%d, %d, %d\n",
+    //           mst_data->device_number,
+     //          mst_data->frame_buf[0],
+     //          mst_data->frame_buf[1],
+      //         mst_data->frame_buf[2]);
 #endif
         return RET_NEXT_DEVICE;
     case MST_ERROR:
 #ifdef USER_DEBUG
-        printf("[LOG_RS] user CB [%d] error\n", mst_data->device_number);
+     //   printf("[LOG_RS] user CB [%d] error\n", mst_data->device_number);
 #endif
         return RET_NEXT_DEVICE;
     default:
@@ -118,21 +118,21 @@ mst_ret_t(mst_rs_user_write_cb)(mst_t *mst_data)
            // mst_data->current_req_inst.data_16 = mh_get_reset_data_mb_buf(mst_data->request_number + 5);
             mst_data->current_req_inst.req_flags = F_TYPE_RTU;
 #ifdef USER_DEBUG
-            printf("[LOG_WRITE] user CB [%d] create\n", mst_data->device_number);
+        //    printf("[LOG_WRITE] user CB [%d] create\n", mst_data->device_number);
 #endif
             return RET_OK;
        // }
         //return RET_NEXT_REQUEST;
     case MST_DONE:
 #ifdef USER_DEBUG
-        printf("[LOG_WRITE] write CB\n");
+      //  printf("[LOG_WRITE] write CB\n");
 #endif
         if (mst_data->request_number > 2)
             return RET_NEXT_DEVICE;
         return RET_NEXT_REQUEST;
     case MST_ERROR:
 #ifdef USER_DEBUG
-        printf("[LOG_WRITE] user CB [%d] error\n", mst_data->device_number);
+    //   printf("[LOG_WRITE] user CB [%d] error\n", mst_data->device_number);
 #endif
         return RET_NEXT_DEVICE;
     default:

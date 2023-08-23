@@ -252,7 +252,7 @@ static mst_ret_t mst_send_request(mst_t *mst)
     {
         mst->state = MST_ERROR;
 #ifdef USER_DEBUG
-        printf("[ERROR] MST device [%d] can't send request\n", mst->device_number);
+       printf("[ERROR] MST device [%d] can't send request\n", mst->device_number);
 #endif
         ret = RET_ERROR;
     }
@@ -273,7 +273,7 @@ static mst_ret_t mst_parse_request(mst_t *mst)
         }
     }
 #ifdef USER_DEBUG
-    printf("[ERROR] MST device [%d] parsing error\n", mst->device_number);
+   // printf("[ERROR] MST device [%d] parsing error\n", mst->device_number);
 #endif
     mst->state = MST_ERROR;
     return RET_ERROR;

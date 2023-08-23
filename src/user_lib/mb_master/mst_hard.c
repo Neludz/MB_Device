@@ -27,7 +27,7 @@
 #include <mst_disp.h>
 #include "mst_modbus_config.h"
 #include "mst_modbus_cb.h"
-
+#include "gpio_user.h"
 // tcp example
 MST_INSTANCE_DEF(mst_1, master_main_cb, MST_BUF_TABLE);
 int socket_desc;
@@ -213,7 +213,7 @@ int get_block(uint8_t *buf, int timeout, int maxbytes, int id)
         if ((bytes_count + bytes) >= maxbytes)
         {
 #ifdef USER_DEBUG
-            printf("[MB_MASTER_UART_ERROR]: (bytes_count >= maxbytes) = %d \n", bytes_count);
+            //   printf("[MB_MASTER_UART_ERROR]: (bytes_count >= maxbytes) = %d \n", bytes_count);
 #endif
             return 0;
         }
@@ -224,7 +224,7 @@ int get_block(uint8_t *buf, int timeout, int maxbytes, int id)
             if ((read_count == -1) || (read_count != bytes))
             {
 #ifdef USER_DEBUG
-                printf("[MB_MASTER_UART_ERROR]: read_count != bytes");
+                //        printf("[MB_MASTER_UART_ERROR]: read_count != bytes\n");
 #endif
                 return 0;
             }
@@ -232,10 +232,11 @@ int get_block(uint8_t *buf, int timeout, int maxbytes, int id)
         time_span++;
         if ((((timeout / 20) < time_span) && (!bytes_count)) ||
             ((bytes_count) && (!bytes)))
-            return bytes_count;
+            break;
+        // return bytes_count;
     }
 #ifdef USER_DEBUG
-    printf("[MB_MASTER_UART]:bytes read : %d\n", bytes);
+    // printf("[MB_MASTER_UART]:bytes read : %d\n", bytes);
 #endif
     return bytes_count;
 }
@@ -293,7 +294,7 @@ mst_ret_t master_rs485_cb(mst_t *mst_data)
         write(sfd, mst_data->tx_buf, mst_data->len);
         mst_data->len = get_block(mst_data->rx_buf, 250, MST_FRAME_MAX, sfd);
 #ifdef USER_DEBUG
-        printf("[MB_MASTER_UART]: MST_RX/TX\n");
+        //    printf("[MB_MASTER_UART]: MST_RX/TX\n");
 #endif
         break;
         //*********************************************************
@@ -315,7 +316,7 @@ mst_ret_t master_rs485_2_cb(mst_t *mst_data)
     case MST_INIT:
 // init code
 #ifdef USER_DEBUG
-        printf("[MB_MASTER_UART]: MST_INIT\n");
+        //    printf("[MB_MASTER_UART]: MST_INIT\n");
 #endif
         // // ttyS0
         sfd_2 = open("/dev/ttyAMA1", O_RDWR | O_NOCTTY);
@@ -338,7 +339,15 @@ mst_ret_t master_rs485_2_cb(mst_t *mst_data)
         options.c_cc[VMIN] = 0;
         cfmakeraw(&options);
         tcsetattr(sfd_2, TCSANOW, &options);
-
+        /*
+         * Enable GPIO pins
+         */
+        GPIOExport(DE_RS_485_PIN);
+        /*
+         * Set GPIO directions
+         */
+        GPIODirection(DE_RS_485_PIN, OUT);
+        GPIOWrite(DE_RS_485_PIN, 0);
         break;
         //*********************************************************
     case MST_PREPARE_CONNECT:
@@ -353,10 +362,14 @@ mst_ret_t master_rs485_2_cb(mst_t *mst_data)
     case MST_SEND_REQ:
         // send request
         usleep(5000);
+        GPIOWrite(DE_RS_485_PIN, 1);
         write(sfd_2, mst_data->tx_buf, mst_data->len);
-        mst_data->len = get_block(mst_data->rx_buf, 250, MST_FRAME_MAX, sfd);
+        tcdrain(sfd_2);
+        GPIOWrite(DE_RS_485_PIN, 0);
+        mst_data->len = get_block(mst_data->rx_buf, 250, MST_FRAME_MAX, sfd_2);
+      //  GPIOWrite(DE_RS_485_PIN, 1);
 #ifdef USER_DEBUG
-        printf("[MB_MASTER_UART]: MST_RX/TX\n");
+        //    printf("[MB_MASTER_UART]: MST_RX/TX\n");
 #endif
         break;
         //*********************************************************
