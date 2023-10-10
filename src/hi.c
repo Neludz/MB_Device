@@ -20,7 +20,7 @@
 #include "modbus_hard.h"
 #include "mst_hard.h"
 // #include "mst_disp.h"
-
+// hp 104 hphp
 #define LOG_ERR(fmt, ...) \
     fprintf(stderr, "[ERROR] <%s:%d> : " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 
