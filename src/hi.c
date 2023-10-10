@@ -18,7 +18,7 @@
 #include "user_lib/mb_dev.h"
 #include "user_lib/configini.h"
 #include "modbus_hard.h"
-
+// test git messages
 #define LOG_ERR(fmt, ...)	\
 	fprintf(stderr, "[ERROR] <%s:%d> : " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 
