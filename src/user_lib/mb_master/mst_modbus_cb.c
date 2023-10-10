@@ -46,11 +46,11 @@ mst_ret_t(mst_user_cb)(mst_t *mst_data)
         return RET_OK;
     case MST_DONE:
 #ifdef USER_DEBUG
-        // printf("[LOG_ETH] user CB [%d] done :%d, %d, %d\n",
-        //       mst_data->device_number,
-        //        mst_data->frame_buf[0],
-        //        mst_data->frame_buf[1],
-        //        mst_data->frame_buf[2]);
+         printf("[LOG_ETH] user CB [%d] done :%d, %d, %d\n",
+              mst_data->device_number,
+               mst_data->frame_buf[0],
+                mst_data->frame_buf[1],
+                mst_data->frame_buf[2]);
 #endif
         if (mst_data->request_number >= 2)
             return RET_NEXT_DEVICE;

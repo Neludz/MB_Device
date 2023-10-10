@@ -34,7 +34,8 @@
             "mst_modbus_cb.h": "c",
             "msg.h": "c",
             "mqueue.h": "c",
-            "ctype.h": "c"
+            "ctype.h": "c",
+            "termios-baud.h": "c"
         },
         "makefile.makePath": "make",
         "makefile.launchConfigurations": [

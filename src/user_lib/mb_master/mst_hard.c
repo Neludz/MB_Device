@@ -339,15 +339,26 @@ mst_ret_t master_rs485_2_cb(mst_t *mst_data)
         options.c_cc[VMIN] = 0;
         cfmakeraw(&options);
         tcsetattr(sfd_2, TCSANOW, &options);
+#ifdef GPIO_USER
         /*
          * Enable GPIO pins
          */
-        GPIOExport(DE_RS_485_PIN);
+        if (GPIOExport(DE_RS_485_PIN) == -1)
+        {
+            perror("[MB_SLAVE_ERROR]: GPIOExport == -1");
+        }
         /*
          * Set GPIO directions
          */
-        GPIODirection(DE_RS_485_PIN, OUT);
-        GPIOWrite(DE_RS_485_PIN, 0);
+        if (GPIODirection(DE_RS_485_PIN, OUT) == -1)
+        {
+            perror("[MB_SLAVE_ERROR]: GPIODirection == -1");
+        }
+        if (GPIOWrite(DE_RS_485_PIN, 0) == -1)
+        {
+            perror("[MB_SLAVE_ERROR]: GPIOWrite == -1");
+        }
+#endif
         break;
         //*********************************************************
     case MST_PREPARE_CONNECT:
@@ -362,12 +373,21 @@ mst_ret_t master_rs485_2_cb(mst_t *mst_data)
     case MST_SEND_REQ:
         // send request
         usleep(5000);
-        GPIOWrite(DE_RS_485_PIN, 1);
+#ifdef GPIO_USER
+        if (GPIOWrite(DE_RS_485_PIN, 1) == -1)
+        {
+            perror("[MB_SLAVE_ERROR]: GPIOWrite == -1");
+        }
+#endif
         write(sfd_2, mst_data->tx_buf, mst_data->len);
         tcdrain(sfd_2);
-        GPIOWrite(DE_RS_485_PIN, 0);
+#ifdef GPIO_USER
+        if (GPIOWrite(DE_RS_485_PIN, 0) == -1)
+        {
+            perror("[MB_SLAVE_ERROR]: GPIOWrite == -1");
+        }
+#endif
         mst_data->len = get_block(mst_data->rx_buf, 250, MST_FRAME_MAX, sfd_2);
-      //  GPIOWrite(DE_RS_485_PIN, 1);
 #ifdef USER_DEBUG
         //    printf("[MB_MASTER_UART]: MST_RX/TX\n");
 #endif

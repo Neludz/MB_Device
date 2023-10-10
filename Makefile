@@ -11,7 +11,8 @@ CPP_FLAGS	:= -O0 -g
 LD_FLAGS	:= -O0
 MAKEFLAGS	:= 
 DEBUG_DEF 	:= -DUSER_DEBUG
-PROJECT_DEF :=
+ARM_COMPILER_DEF 	:= -DGPIO_USER
+PROJECT_DEF := 
 
 # copmiler
 compiler = x86
@@ -36,9 +37,10 @@ VPATH = $(SRC_DIRS)
 # copmiler
 compiler = x86
 ifeq ($(compiler),x86)
-	CC := $(CC_X86) 
+	CC := $(CC_X86)
 else
 	CC := $(CC_ARM) 
+	PROJECT_DEF += $(ARM_COMPILER_DEF)
 endif
 	
 
