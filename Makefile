@@ -1,6 +1,7 @@
-#compiler and linker flags
-CC			:= gcc
-SRC_DIRS	:= src	src/user_lib	src/user_lib/mb_slave
+#compiler and linker flags ARM copmiler =  aarch64-linux-gnu-gcc
+CC_X86		:= gcc
+CC_ARM		:= aarch64-linux-gnu-gcc
+SRC_DIRS	:= src	src/user_lib src/user_lib/mb_slave src/user_lib/mb_master
 INC_DIRS	:= 
 LIB_DIRS	:=
 BIN_DIR 	:= bin
@@ -8,7 +9,14 @@ BIN_EXE		:= test
 OBJ_DIR		:= obj
 CPP_FLAGS	:= -O0 -g
 LD_FLAGS	:= -O0
-MAKEFLAGS	:=
+MAKEFLAGS	:= 
+DEBUG_DEF 	:= -DUSER_DEBUG
+ARM_COMPILER_DEF 	:= -DGPIO_USER
+PROJECT_DEF := 
+
+# copmiler
+compiler = x86
+CC :=
 
 # Decide whether the commands will be shwon or not
 VERBOSE = TRUE
@@ -25,6 +33,23 @@ OBJ_FILES	:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c, %.o, $(SRC_FILES)))
 OUTPUT		:= $(BIN_DIR)/$(if $(findstring Windows_NT, $(OS)),$(BIN_EXE).exe,$(BIN_EXE))
 
 VPATH = $(SRC_DIRS)
+
+# copmiler
+compiler = x86
+ifeq ($(compiler),x86)
+	CC := $(CC_X86)
+else
+	CC := $(CC_ARM) 
+	PROJECT_DEF += $(ARM_COMPILER_DEF)
+endif
+	
+
+# mode
+mode = debug
+ifeq ($(mode),debug)
+	PROJECT_DEF += $(DEBUG_DEF)
+endif
+
 
 # Hide or not the calls depending of VERBOSE
 ifeq ($(VERBOSE),TRUE)
@@ -54,7 +79,7 @@ PSEP = $(strip $(SEP))
 define generateRules
 $(1)/%.o: %.c
 	@echo Building $$@
-	$$(HIDE) $$(CC) $$(CPP_FLAGS) $$(INCLUDES) -c -o $$(subst /,$$(PSEP),$$@) $$(subst /,$$(PSEP),$$<) -MMD
+	$$(HIDE) $$(CC) $$(CPP_FLAGS) $$(INCLUDES) $$(PROJECT_DEF) -c -o $$(subst /,$$(PSEP),$$@) $$(subst /,$$(PSEP),$$<) -MMD
 endef
 #$(CPP_FLAGS)
 .PHONY: all clean directories new
@@ -83,3 +108,4 @@ new: clean
 
 run: new
 	./bin/test
+	

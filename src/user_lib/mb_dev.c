@@ -40,19 +40,7 @@ const uint32_t test_val_1[NUM_REG_TYPE1] =
 #undef X_IO
 };
 
-void (*test_pr[NUM_REG_TYPE])(void) =
-{
-#define X_IO(a, b, c, d) c,
-        IO_TABLE
-#undef X_IO
-};
 
-void (*test_pr1[NUM_REG_TYPE1])(void) =
-{
-#define X_IO(a, b, c, d) c,
-        IO_TABLE_1
-#undef X_IO
-};
 
 void test_print()
 {
@@ -78,8 +66,7 @@ mb_config_data_t *parse_config(FILE *file)
     uint32_t reg_count = 0;
     uint32_t i, j;
     // check register count
-test_pr[0]();
-test_pr1[0]();
+
     while (fgets(buf, sizeof(buf), file) != NULL)
     {
         token = strtok(buf, " \t\n");
@@ -126,7 +113,6 @@ test_pr1[0]();
     fseek(file, 0, SEEK_SET);
     while (fgets(buf, sizeof(buf), file) != NULL)
     {
-
         if ((token = strtok(buf, " \t\n")))
         {
             if (*token == '#')

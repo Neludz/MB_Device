@@ -2,16 +2,25 @@
 # comment
 #
 
+# [MB_RTU_SLAVE_X]	
+# [MB_TCP_SLAVE_X]
+#=========================================================
 [MB_TCP_SLAVE_1]	
 		
 Port = 5000
-Addr_ID = 1          # 0 - any address
-#TCP_Frame_type =  0     # else tcp
+#Addr_ID = 1                    # 0 - any address
+TCP_Frame_type =  1             # 1 - "tcp" frame else "rtu on tcp"
 
-
-
+#=========================================================
 [MB_TCP_SLAVE_2]	
-		
+
+Addr_ID = 0                     # 0 - any address
 Port = 5001
-Addr_ID = 1         # 0 - any address
-TCP_Frame_type =  1     # else tcp
+TCP_Frame_type =  1            # 1 - "tcp" frame else "rtu on tcp"
+
+#=========================================================
+[MB_TCP_SLAVE_3]	
+
+Addr_ID = 2                     # 0 - any address
+Port = 5002
+TCP_Frame_type =  0            # 1 - "tcp" frame else "rtu on tcp"

@@ -8,6 +8,7 @@
 #include <user_lib/configini.h>
 #include <modbus.h>
 #include <pthread.h>
+#include <arpa/inet.h>
 
 //config section
 #define CONFIG_MB_TCP_SLAVE   "MB_TCP_SLAVE_"
@@ -19,7 +20,8 @@
 #define CONFIG_TCP_PORT         "Port"
 #define DEFAULT_PORT            502
 #define CONFIG_ADDR_ID          "Addr_ID"
-#define DEFAULT_ADDR            1
+#define ANY_MB_ADDR             0
+#define DEFAULT_MB_ADDR         ANY_MB_ADDR
 
 // typedef struct
 // {
@@ -32,12 +34,18 @@
 
 typedef struct
 {
-  uint32_t Client_Sock_Inst;
+ // uint32_t Client_Sock_Inst;
   uint8_t Buf_Data[MB_FRAME_MAX];
   int32_t Port;
   MBStruct_t MB_Data_Inst;
   pthread_mutex_t socket_mutex;  
 } mb_tcp_thread_data_t;
+
+typedef struct
+{
+    int sock;
+    mb_tcp_thread_data_t *conn_data;
+} connection_t;
 
 typedef enum
 {
@@ -64,4 +72,6 @@ typedef enum
 int32_t mh_Slave_Init(Config *cfg);
 void mh_TCP_Transmit_Start (void *mbb);
 void mh_Callback_TCP (void *mbb);
+uint16_t mh_get_reset_data_mb_buf(uint16_t number);
+uint16_t mh_get_data_mb_buf(uint16_t number);
 #endif /* MODBUS_HARD_H_INCLUDED */

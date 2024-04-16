@@ -2,6 +2,7 @@
 #define MODBUS_X_H_INCLUDED
 
 #include <stdint.h>
+#include <mst_hard.h>
 //#include "modbus_hard.h"
 
 //-----------------------------------------------------------------------
@@ -13,7 +14,7 @@
 //-----------------------------------------------------------------------
 #define MB_LIMIT_REG	    1 // check limit
 #define MB_CALLBACK_REG	    1 // use write callback
-//#define MB_USER_ARG1_REG	1 // use user argument (for example: run user callback after write function)
+#define MB_USER_ARG1_REG	1 // use user argument (for example: run user callback after write function)
 //#define MB_USER_ARG2_REG	1 // not implement now
 #define MB_TCP_PERMISSION   1 // TCP frame avalible
 //#define MB_REG_END_TO_END   // If not define "MB_REG_END_TO_END" then number register is determined in "a" field from X-macros
@@ -41,14 +42,14 @@
 	X_BUF(2,	Reg_T_1_Channel,	    0,		0,		0, 		0,	 	READ_R)\
 	X_BUF(3,	Reg_T_2_Channel,	    0,		0,		0, 		0,	 	READ_R)\
 	X_BUF(4,	Reg_T_3_Channel,	    0,		0,		0, 		0,		READ_R)\
-	X_BUF(5,	Reg_T_4_Channel,	    0,		0,		0, 		0,		READ_R)\
-	X_BUF(6,	Reg_T_5_Channel,	    0,		0,		0, 		0,		READ_R)\
-	X_BUF(7,	Reg_T_6_Channel,	    0,		0,		0, 		0,		READ_R)\
+	X_BUF(5,	Reg_T_4_Channel,	    write_rs,0,		0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
+	X_BUF(6,	Reg_T_5_Channel,	    write_rs,0,		0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
+	X_BUF(7,	Reg_T_6_Channel,	    write_rs,0,		0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
 	X_BUF(8,	Reg_T_7_Channel,	    0,		0,		0, 		0,		READ_R)\
 	X_BUF(9,	Reg_T_8_Channel,	    0,		0,		0, 		0,		READ_R)\
-	X_BUF(10,	Reg_Cur_RMS_W1,		    0,		0,		0, 		0,		READ_R)\
-	X_BUF(11,	Reg_Cur_RMS_W2,		    0,		0,		0, 		0,		READ_R)\
-	X_BUF(12,	Reg_T_MSD,			    0,		0,		0, 		0,		READ_R)\
+	X_BUF(10,	Reg_Cur_RMS_W1,		    write_rs_2,0,	0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
+	X_BUF(11,	Reg_Cur_RMS_W2,		    write_rs_2,0,	0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
+	X_BUF(12,	Reg_T_MSD,			    write_rs_2,0,	0, 		0,		WRITE_R | CB_WR | USER_FUNC)\
 	X_BUF(13,	Reg_T_Max,			    0,		0,		0, 		0,		READ_R)\
 	X_BUF(14,	Reserved_3,			    0,      100,	0, 		0xFFFF,	READ_R)\
 	X_BUF(15,	Reserved_4,			    0,		123,	0, 		0xFFFF,	READ_R)\
